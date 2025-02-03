@@ -1,0 +1,327 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #1e1e1e;
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    flex-direction: column;
+}
+
+header{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 10%;
+    background-color: #2c2c2c;
+    color: #f5f5f5;
+    font-size: 1.5rem;
+    font-weight: 600;
+    border-bottom: 1px solid #444;
+    padding: 0 20px;
+    position: fixed;
+    top: 0;
+}
+
+.logo img {
+    height: 4rem; /* Adjust height as needed */
+    display: block;
+}
+
+header nav ul{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+header a{
+    color: #f5f5f5;
+    text-decoration: none;
+}
+
+.flex-register-box {
+    background-color: #2c2c2c;
+    padding: 2rem;
+    border-radius: 20px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid #444;
+    width: 80%;
+    max-width: 400px;
+    max-height: 80%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin: 1rem;
+    margin-top: 5rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    overflow: auto;
+}
+
+.flex-register-box:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
+}
+
+.flex-register-box h1 {
+    color: #f5f5f5;
+    font-size: 36px;
+    margin-bottom: 20px;
+    margin-top: 10px;
+}
+.flex-register-box input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #555;
+    background-color: #3c3c3c;
+    color: #f5f5f5;
+    margin-bottom: 15px;
+    transition: border-color 0.3s ease;
+}
+
+.flex-register-box input:focus {
+    border-color: #888;
+    outline: none;
+}
+
+.flex-register-box #register-btn {
+    width: 80%;
+    padding: 10px;
+    border-radius: 30px;
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    margin: 10px;
+}
+
+.flex-register-box #register-btn:hover {
+    background-color: #45a049;
+    transform: translateY(-5px);
+}
+
+form{
+    height: 100%;
+    width: 100%;
+}
+
+/* Horizontal rule styling */
+hr {
+    border: none;
+    border-top: 1px solid #888;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.input-all{
+    margin: 10px;
+}
+
+/* Input container for username and password */
+.input-container {
+    width: 100%; /* Make the container fill the width */
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center items within the container */
+    position: relative;
+    margin-top: 30px;
+}
+
+/* Styling the input fields */
+.input-container input {
+    width: 100%; /* Make input field fill the container */
+    max-width: 100%; /* Prevent overflow */
+    padding: 15px 20px;
+    border: 2px solid #777; /* Light grey border */
+    border-radius: 25px; /* Rounded corners */
+    font-size: 20px;
+    background-color: #333; /* Darker background */
+    color: #fff; /* White text */
+    outline: none;
+    transition: border-color 0.3s ease;
+    z-index: 1;  /* stay on top of validation-box */
+}
+
+/* Styling the placeholders */
+.input-container placeholder {
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    transform: translateY(-50%);
+    color: #888; /* Light gray text */
+    pointer-events: none; /* Makes placeholder unclickable */
+    transition: 0.3s ease all;
+    font-size: 20px;
+}
+
+/* On input focus or filled, move placeholder up */
+.input-container input:focus + placeholder,
+.input-container input:not(:placeholder-shown) + placeholder {
+    top: -10px;
+    left: 15px;
+    font-size: 12px;
+    color: #ccc;
+    display: none;
+}
+
+
+
+/* Input focus effect */
+.input-container input:focus {
+    border-color: #ccc; /* Light grey border on focus */
+    background-color: #535353;
+}
+
+/* #register-btn styling */
+#register-btn {
+    width: 90%; /* Full width #register-btn */
+    max-width: 100%; /* Prevent overflow */
+    padding: 15px;
+    border: none;
+    border-radius: 25px;
+    background-color: #777; /* Grey background */
+    color: #fff; /* White text */
+    font-size: 20px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-top: 2rem;
+}
+
+/* Hover effect on #register-btn */
+#register-btn:hover {
+    background-color: #555; /* Darker on hover */
+}
+
+/* Gap between elements */
+.flex-register-box > * {
+    margin-bottom: 20px;
+}
+
+h5{ 
+    margin: 0;
+    color: #b4b4b4;
+    text-decoration: none;
+}
+
+a{
+    color: #e6e6e6;
+    text-decoration: none;
+}
+
+a:hover {
+    color: rgb(77, 77, 223);
+    transition: 0.3s ease;
+}
+
+.input-container input.invalid-field {
+    box-shadow: 0px 4px 5px 0px red; /* Red outline effect for invalid field */
+    transition: 0.3s ease;
+}
+
+.input-container input.valid-field {
+    box-shadow: 0px 4px 5px 0px green;    /* Green outline effect for valid field */
+    transition: 0.3s ease;
+}
+
+/* VALIDATION */
+.validation-box{
+    position: relative;
+    display: none;
+    margin-top: 5px;
+}
+
+.show-message{
+    display: block;
+    opacity: 1;
+    top: 0;
+}
+
+.validation-message {
+    display: block;
+    font-size: 0.9rem;
+    flex-wrap: wrap;
+    color: #fda8a8;
+    pointer-events: none;
+    text-align: left;
+}
+
+.valid-requirement{
+    display: none;
+}
+
+* {
+    box-sizing: border-box;
+}
+/* Media queries for responsiveness */
+
+/* Small devices (phones, 600px and down) */
+@media only screen and (max-width: 600px) {
+    .flex-register-box {
+        width:70%;
+    }
+
+    .flex-register-box h1 {
+        font-size: 30px;
+    }
+
+    .flex-register-box input {
+        padding: 8px;
+        font-size: 16px;
+    }
+
+    #register-btn {
+        padding: 10px;
+        font-size: 18px;
+    }
+
+    .validation-message {
+        font-size: 0.8rem;
+        margin: 0;
+    }
+
+    .input-container input{
+        font-size: 16px;
+        padding: 10px;
+        margin-bottom: 8px;
+    }
+
+    .input-container {
+        margin-bottom: 12px;
+    }
+}
+
+
+/* Custom Scrollbar Styles */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #2c2c2c;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+/* For Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #555 #2c2c2c;
+}

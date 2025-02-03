@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="bg"> 
+    <head>
+        <meta charset="UTF-8">
+        <link rel="stylesheet" href="/auth/login/login-design.css">
+        <title>Login</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+
+        <header>
+                <a href="../home/" class="logo"> 
+                    <img src="../../fintrack-header-logo.svg" alt="logo">
+                </a>   
+            <nav>
+                <ul>
+                    <li><a href="/home">Начало</a></li>
+                    <li><a href="/blog">Блог</a></li>
+                    <li><a href="/contact">Контакти</a></li>
+                </ul> 
+            </nav>
+        </header>
+
+        <div class="flex-login-box">
+            <h1 class="login">Вход</h1>
+            <hr>
+            <form method="post" action="login" id="login-form">
+                <div class="input-all">
+                    <!--EMAIL-->
+                    <div class="input-container">
+                        <input type="email" id="email" name="email" placeholder="Имейл" required>
+                        <div class="validation-box" id="email-validation-box">
+                            <span class="validation-message">Неправилен формат на имейл</span>
+                        </div>
+                    </div>
+
+                    <!-- PASSWORD-->
+                    <div class="input-container">
+                        <input type="password" id="password" name="password" placeholder="Парола" required>
+                        <div class="validation-box" id="password-validation-box">
+                            <span class="validation-message">Невалидна парола</span>
+                        </div>
+                    </div>
+                </div>
+                <input type="submit" id="login-btn" value="Вход">
+                
+                    <!-- Remember Me Checkbox -->
+                    <div class="remember-me">
+                        <input type="checkbox" id="remember" name="remember">
+                        <label for="remember">Запомни ме</label>
+                    </div>
+            </form>
+            <h5>Нямате акаунт? <a href="/register">Цъкнете тук</a></h5>
+        </div>  
+        <script src="/auth/login/login-script.js"></script>
+    </body>
+</html>

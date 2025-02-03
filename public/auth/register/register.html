@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="bg"> 
+    <head>
+        <meta charset="UTF-8">
+        <link rel="stylesheet" href="/auth/register/register-design.css">
+        <title>Register</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body> 
+
+        <header>
+            <a href="../home/" class="logo"> <img src="../../fintrack-header-logo.svg" alt="logo"> </a>
+            <nav>
+                <ul>
+                    <li><a href="/home/">Начало</a></li>
+                    <li><a href="../blog/blog/">Блог</a></li>
+                    <li><a href="../contact/contact/">Контакти</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <div class="flex-register-box">
+            <h1 class="register">Регистрация</h1>
+            <hr>
+            <form method="post" action="register" id="register-form">
+                <div class="input-all">
+                    <!--NAME-->
+                    <div class="input-container">
+                        <input type="text" id="username" name="username" placeholder="Име" required>
+                        <div class="validation-box" id="username-validation-box">
+                            <span class="validation-message">Поне 6 символа</span>
+                        </div>
+                    </div>
+
+                    <!--EMAIL-->
+                    <div class="input-container">
+                        <input type="email" id="email" name="email" placeholder="Имейл" required>
+
+                        <!--VALIDATION MESSAGE-->
+                        <div class="validation-box" id="email-validation-box">
+                            <span class="validation-message">Неправилен формат на имейл</span>
+                        </div>
+                    </div>
+
+                    <!-- PASSWORD-->
+                    <div class="input-container">
+                        <input type="password" id="password" name="password" placeholder="Парола" required>
+                        <div class="validation-box" id="password-validation-box">
+                            <span class="validation-message" id="password-validation-message">
+                                Паролата трябва да съдържа: <br>
+                                <span id="length-requirement">• 8-32 символа; <br></span>
+                                <span id="uppercase-requirement">• поне 1 главна буква; <br></span>
+                                <span id="lowercase-requirement">• поне 1 малка буква; <br></span>
+                                <span id="digit-requirement">• поне 1 цифра; <br></span>
+                                <span id="special-requirement">• специален символ (@$!%*?&).<br></span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!--CONFPASSWORD-->
+                    <div class="input-container">
+                        <input type="password" id="repeated-password" name="confPass" placeholder="Повторете паролата" required>
+                        <div class="validation-box" id="confPass-validation-box">
+                            <span class="validation-message">Паролите не съвпадат</span>
+                        </div>
+                    </div>
+            </div>
+                <input type="submit" id="register-btn" value="Регистриране">
+                
+        </form>
+        <h5>Имате акаунт? <a href="../login/">Цъкнете тук</a></h5>
+        </div>  
+        <script src="/auth/register/register-script.js"></script>
+
+    </body>
+</html>
