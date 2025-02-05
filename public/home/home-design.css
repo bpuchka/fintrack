@@ -49,6 +49,10 @@ header{
     top: 0;
 }
 
+ul{
+    list-style: none;
+}
+
 .left-side-header{
     display: flex;
     justify-content: center;
@@ -100,14 +104,14 @@ section{
 }
 
 .left-side h1{
-    font-size: clamp(3rem, 8vw, 8rem); /* Makes title responsive */
+    font-size: clamp(3rem, 8vw, 7rem); /* Makes title responsive */
     font-weight: 600;
     line-height: 1.2;
     margin: 0;
 }
 
 .left-side h2{
-    font-size: clamp(2rem, 5vw, 5rem);
+    font-size: clamp(2rem, 4vw, 4.5rem);
     margin: 0;
     margin-bottom: 1rem;
 }
@@ -129,7 +133,7 @@ section{
 
 section .button{
     padding: 0.7rem 2rem;
-    font-size: calc(var(--base-font) * 1.2);
+    font-size: clamp(1rem, 2.5vw, 2rem);
     font-weight: 600;
 } 
 
@@ -158,32 +162,36 @@ section .button{
     background-color: #171616;
     border-radius: 40px;
     padding: 1rem 2rem;
-    height: 75%;
+    height: fit-content;
     max-width: 32%;
 }
 
 .blog-post-title h3 {
-    font-size: 2rem;
+    font-size: clamp(1.2rem, 2vw, 2rem);    
     margin: 0;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
-    max-height: calc(1.2em * 3);
+    line-height: 1.3;
+    max-height: calc(1.3em * 3);
     padding-top: 0.5rem;
+}
+
+.author-name, .blog-post-date {
+    font-size: clamp(0.8rem, 1.5vw, 1.2rem);
 }
 
 .blog-post-credentials{
     display: flex;
     justify-content: space-between;
     padding: 0 0.5rem;
-    font-size: 1.5rem;
+    font-size: clamp(0.8rem, 1.3vw, 1.7rem);    
     margin: 0;
     margin-top: -0.5rem;
 }
 
 .blog-post-content p{
-    font-size: 1.5rem;
+    font-size: clamp(1rem, 1.5vw, 1.8rem);
     margin-top: 1rem;
     margin-bottom: 0;
     max-width: 100%;
@@ -211,6 +219,10 @@ section .button{
     text-decoration: none;
 }
 
+.blog-post-read-more a p{
+    font-size: clamp(1.5rem, 2vw, 2rem);
+}
+
 .blog-post-read-more p{
     color: #6dc0e0;
     font-size: 1.5rem;
@@ -219,6 +231,73 @@ section .button{
     margin: 0;
 }
 
+.menu-icon {
+    display: none; /* Hidden by default */
+    cursor: pointer;
+}
+
+.menu-icon img {
+    width: 40px;
+    height: 40px;
+}
+
+.menu-container {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+footer {
+    background-color: #2c2c2c;
+    border-top: 1px solid #444;
+    padding: 1rem 2%;
+    margin-top: 8rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    align-items: start;
+}
+
+.footer-logo img {
+    height: 4rem;
+    max-width: 100%;
+}
+
+.footer-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-menu li {
+    margin-bottom: 1rem;
+}
+
+.footer-menu a,
+.footer-social-media a {
+    color: #444;
+    text-decoration: none;
+    font-size: clamp(0.875rem, 1.5vw, 1.25rem);
+    transition: color 0.3s ease;
+}
+
+.footer-menu a:hover,
+.footer-social-media a:hover {
+    color: #6dc0e0;
+}
+
+.footer-social-media {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
 
 /* RESPONSIVE MEDIA QUERIES */
 @media (max-width: 1024px) {
@@ -227,11 +306,15 @@ section .button{
         text-align: center;
         height: auto;
         gap: 2rem;
+        padding: 0 4rem;
     }
 
-    .left-side {
-        width: 90%;
-        align-items: center;
+    header .register-btn{display: none;}
+
+    body::before {  
+        -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent 80%);
+        mask-image: linear-gradient(to bottom, #000 50%, transparent 80%);
+
     }
 
     .left-side h1,
@@ -242,45 +325,72 @@ section .button{
     .login-register-section {
         padding-left: 0;
         justify-content: center;
-    }
-
-    .blog-post-box {
-        max-width: 80%;
-    }
-}
-
-@media (max-width: 768px) {
-    header {
-        flex-direction: column;
-        height: auto;
-        text-align: center;
-        padding: 1rem;
-    }
-
-    header nav ul {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .left-side h1 {
-        font-size: 2.5rem;
-    }
-
-    .left-side h2 {
-        font-size: 1.8rem;
-    }
-
-    .login-register-section {
+        display: flex;
         flex-direction: column;
         gap: 1rem;
     }
 
     .blog-post-box {
-        max-width: 90%;
+        max-width: 80%;
+        margin: 0 auto;
     }
+    
+}
+
+@media (max-width: 768px) {
+    section {
+        padding: 0 2rem;
+    }
+    .menu-icon {
+        display: block; /* Show menu icon */
+    }
+
+    .logo img {
+        height: 3rem; /* Adjust height as needed */
+    }
+
+    .menu-container {
+        display: none; /* Hide menu by default */
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: #2c2c2c;
+        padding: 1rem 0;
+    }
+
+    .menu-container nav ul {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .menu-container.active {
+        display: flex; /* Show when toggled */
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 1rem;
+    }
+
+    .footer-logo {
+        display: flex;
+        justify-content: center;
+    }
+
+    .footer-social-media {
+        flex-direction: row;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 2rem;
+    }
+
 }
 
 @media (max-width: 480px) {
+
     .left-side h1 {
         font-size: 2rem;
     }
@@ -295,6 +405,23 @@ section .button{
     }
 
     .blog-post-box {
-        max-width: 100%;
+        min-width: 80%;
+        margin: 0 auto;
     }
+
+    header .register-btn{display: none;}
+
+    footer {
+        padding: 2rem 1rem;
+    }
+
+    .footer-logo img {
+        height: 3rem;
+    }
+
+    .footer-social-media {
+        gap: 1rem;
+    }
+
+
 }
