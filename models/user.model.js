@@ -1,4 +1,4 @@
-const sql = require("../config/db.config.js");
+const sql = require("../config/db.js");
 
 const User = function(user) {
   this.username = user.username;

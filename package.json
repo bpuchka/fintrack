@@ -7,13 +7,29 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "express": "^4.17.1",
-    "cors": "^2.8.5",
-    "mysql2": "^2.3.3",
     "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "mysql2": "^2.3.3",
     "path": "^0.12.7"
   },
   "devDependencies": {
     "nodemon": "^2.0.15"
-  }
+  },
+  "description": "��#\u0000 \u0000f\u0000i\u0000n\u0000t\u0000r\u0000a\u0000c\u0000k\u0000\r\u0000 \u0000",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bpuchka/fintrack.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/bpuchka/fintrack/issues"
+  },
+  "homepage": "https://github.com/bpuchka/fintrack#readme"
 }

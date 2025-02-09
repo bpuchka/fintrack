@@ -1,0 +1,8 @@
+# Ignore environment variables
+.env
+
+# Ignore node_modules (so you don’t push thousands of unnecessary files)
+node_modules/
+
+# Ignore log files
+*.log
