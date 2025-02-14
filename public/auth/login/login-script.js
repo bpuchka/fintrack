@@ -77,7 +77,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const { email, password } = Object.fromEntries(formData.entries());
         const remember = document.getElementById("remember").checked;
     
-        fetch("/api/auth/login", {
+        fetch("http://localhost:5000/login", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -86,25 +86,33 @@ document.addEventListener("DOMContentLoaded", function() {
                 email,
                 password,
                 remember
-            })
+            }),
+            credentials: 'include' // Add this to handle sessions
         })
         .then(async response => {
+            const data = await response.json();
             if (!response.ok) {
-                const error = await response.text();
-                throw new Error(error);
+                throw new Error(data.message || 'Login failed');
             }
-            return response.json();
+            return data;
         })
         .then(data => {
-            if (data.message === "Login successful") {
-                window.location.href = "/home";
+            if (data.token) {
+                // Store token if you need it for future requests
+                localStorage.setItem('token', data.token);
+                // Redirect to home page
+                window.location.href = "/";
             } else {
-                alert(data.message);
+                throw new Error('No token received');
             }
         })
         .catch(error => {
             console.error("Error:", error);
-            alert("Login failed. Please check your credentials.");
+            // Show error in the validation box instead of alert
+            const passwordValidationBox = document.getElementById("password-validation-box");
+            const validationMessage = passwordValidationBox.querySelector(".validation-message");
+            validationMessage.textContent = error.message || "Login failed. Please check your credentials.";
+            passwordValidationBox.classList.add("show-message");
         });
     });
 

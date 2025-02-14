@@ -23,7 +23,7 @@
         <div class="menu-container">
             <nav>
                 <ul>
-                    <li><a href="#">Начало</a></li>
+                    <li><a href="/home">Начало</a></li>
                     <li><a href="#">Блог</a></li>
                     <li><a href="#">Контакти</a></li>
                 </ul>
@@ -38,7 +38,7 @@
                 <% } else { %>
                     <div class="welcome-message">
                         <p>Добре дошъл, <%= user.username %>!</p>
-                        <a href="/logout" class="button logout-btn">Изход</a>
+                        <a href="/logout" class="button login-btn">Изход</a>
                     </div>
                 <% } %>
             </div>
@@ -47,10 +47,11 @@
 
     <section>
         <div class="left-side">
+            <% if (!user) { %>
             <h1>Fin<a style="color: #6dc0e0;">Track </a></h1>
             <h2>Опознай <a style="color: #6dc0e0;">парите </a> си</h2>
 
-            <% if (!user) { %>
+            
                 <div class="login-register-section">
                     <div>
                         <a href="/login" class="button login-btn">Вход</a>
@@ -60,10 +61,10 @@
                     </div>
                 </div>
             <% } else { %>
-                <p class="welcome-text">Радваме се, че се завърнахте, <%= user.username %>!</p>
+                <h2 class="welcome-text">Радваме се, че се завърнахте, <%= user.username  %>!</h2>
             <% } %>
         </div>
-
+        
         <div class="blog-post-box">
             <div class="blog-post-title">
                 <h3>Как да се справим с финансовите си проблеми?</h3>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found</title>
+    <link rel="stylesheet" href="/home/home-design.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        .error-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 70vh;
+            text-align: center;
+            padding: 0 2rem;
+        }
+
+        .error-code {
+            font-size: clamp(6rem, 15vw, 12rem);
+            font-weight: 600;
+            margin: 0;
+            color: #6dc0e0;
+            line-height: 1;
+        }
+
+        .error-message {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            margin: 1rem 0 2rem 0;
+            color: #ffffff;
+        }
+
+        .error-description {
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            color: #d7d7d7;
+            margin-bottom: 2rem;
+            max-width: 600px;
+        }
+
+        .home-button {
+            background-color: #6dc0e0;
+            color: #ffffff;
+            padding: 0.8rem 2rem;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+
+        .home-button:hover {
+            background-color: #5ba8c7;
+        }
+
+        @media (max-width: 480px) {
+            .error-container {
+                padding: 0 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <%- include('partials/header') %>
+    
+    <main class="error-container">
+        <h1 class="error-code">404</h1>
+        <h2 class="error-message">Page Not Found</h2>
+        <p class="error-description">
+            Oops! The page you're looking for seems to have vanished into the digital void. 
+            Don't worry, you can always head back to our home page.
+        </p>
+        <a href="/" class="home-button">Back to Home</a>
+    </main>
+
+    <%- include('partials/footer') %>
+</body>
+</html>

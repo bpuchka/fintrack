@@ -1,85 +1,123 @@
 const User = require("../models/user.model.js");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+require("dotenv").config(); // Load environment variables
 
-exports.register = (req, res) => {
-  if (!req.body) {
-    res.status(400).send({
-      message: "Content can not be empty!"
-    });
-    return;
-  }
-
-  User.findByEmail(req.body.email, (err, data) => {
-    if (data) {
-      res.status(400).send({
-        message: "Email already exists"
-      });
-      return;
-    }
-
-    const salt = bcrypt.genSaltSync(10);
-    const hash = bcrypt.hashSync(req.body.password, salt);
-
-    const user = new User({
-      username: req.body.username,
-      email: req.body.email,
-      password: hash
-    });
-
-    User.create(user, (err, data) => {
-      if (err) {
-        res.status(500).send({
-          message: err.message || "Some error occurred while creating the User."
-        });
-      } else {
-        res.send({ message: "Registration successful" });
-      }
-    });
-  });
+// geenrating jtw token
+const generateToken = (user) => {
+  return jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" } // Token expires in 1 hour
+  );
 };
 
-exports.login = (req, res) => {
-  if (!req.body) {
-      res.status(400).send({
-          message: "Content can not be empty!"
-      });
-      return;
-  }
-
-  User.findByEmail(req.body.email, (err, user) => {
-      if (err) {
-          res.status(500).send({
-              message: "Error retrieving user"
-          });
-          return;
+//user registration
+exports.register = async (req, res) => {
+  try {
+      if (!req.body) {
+          return res.status(400).json({ message: "Content cannot be empty!" });
       }
+
+      const existingUser = await new Promise((resolve, reject) => {
+          User.findByEmail(req.body.email, (err, data) => {
+              if (err) reject(err);
+              resolve(data);
+          });
+      });
+
+      if (existingUser) {
+          return res.status(400).json({ message: "Email already exists" });
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash(req.body.password, salt);
+
+      const user = new User({
+          username: req.body.username,
+          email: req.body.email,
+          password: hash,
+      });
+
+      await new Promise((resolve, reject) => {
+          User.create(user, (err, data) => {
+              if (err) reject(err);
+              resolve(data);
+          });
+      });
+
+      res.status(201).json({ message: "Registration successful" });
+  } catch (error) {
+      res.status(500).json({ message: error.message || "Error registering user." });
+  }
+};
+
+//user login
+exports.login = async (req, res) => {
+  try {
+      if (!req.body) {
+          return res.status(400).json({ message: "Content cannot be empty!" });
+      }
+
+      const user = await new Promise((resolve, reject) => {
+          User.findByEmail(req.body.email, (err, data) => {
+              if (err) reject(err);
+              resolve(data);
+          });
+      });
 
       if (!user) {
-          res.status(404).send({
-              message: "User not found"
-          });
-          return;
+          return res.status(404).json({ message: "User not found" });
       }
 
-      const passwordIsValid = bcrypt.compareSync(
-          req.body.password,
-          user.password
-      );
-
+      const passwordIsValid = await bcrypt.compare(req.body.password, user.password);
       if (!passwordIsValid) {
-          res.status(401).send({
-              message: "Invalid Password!"
-          });
-          return;
+          return res.status(401).json({ message: "Invalid Password!" });
       }
 
-      res.send({
+      const token = generateToken(user);
+      
+      // Set user session
+      req.session.user = {
+          id: user.id,
+          username: user.username,
+          email: user.email
+      };
+
+      res.json({
           message: "Login successful",
-          user: {
-              id: user.id,
-              username: user.username,
-              email: user.email
-          }
+          user: { id: user.id, username: user.username, email: user.email },
+          token
       });
+  } catch (error) {
+      console.error("Login error:", error); // Add this for debugging
+      res.status(500).json({ message: "Error logging in" });
+  }
+};
+
+//user logout 
+exports.logout = async (req, res) => {
+  try {
+      // Since JWT is stateless, we can't really "invalidate" it on the server side
+      // The client should remove the token from their storage
+      res.json({ message: "Logged out successfully" });
+  } catch (error) {
+      res.status(500).json({ message: "Error logging out" });
+  }
+};
+
+//middleware to verify token
+exports.verifyToken = (req, res, next) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token) {
+      return res.status(403).json({ message: "No token provided" });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+      if (err) {
+          return res.status(401).json({ message: "Unauthorized! Invalid token" });
+      }
+      req.user = decoded; // Attach user info to request
+      next();
   });
 };
