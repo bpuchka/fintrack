@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80">
+  <!-- Circle container with graph -->
+  <g transform="translate(20, 0)">
+    <circle cx="40" cy="40" r="38" fill="none" stroke="#ffffff" stroke-width="3"/>
+    <rect x="20" y="45" width="8" height="15" fill="#7fdbff"/>
+    <rect x="32" y="35" width="8" height="25" fill="#7fdbff"/>
+    <rect x="44" y="25" width="8" height="35" fill="#7fdbff"/>
+    <path d="M20 45 L32 35 L44 25" stroke="#ffffff" stroke-width="2" fill="none"/>
+    <text x="52" y="30" font-family="Arial, sans-serif" font-size="14" fill="#ffffff">$</text>
+  </g>
+</svg>

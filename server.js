@@ -46,9 +46,14 @@ app.get("/home", (req, res) => {
     res.render("home", { user: req.session.user || null });
 });
 
-app.get("/", (req, res) => {
-    res.render("home", { user: req.session.user || null });
+app.get("/home", (req, res) => {
+    if (!req.session.user) {
+        return res.redirect("/login"); // Ensure user is logged in
+    }
+
+    res.render("home", { user: req.session.user }); // Pass user object
 });
+
 
 
 app.get("/register", (req, res) => {
@@ -112,7 +117,7 @@ app.post("/login", async (req, res) => {
         }
 
         // Save user in session
-        req.session.user = { id: user[0].id, email: user[0].email };
+        req.session.user = { id: user[0].id, email: user[0].email, username: user[0].username };
 
         // If "Remember Me" is checked, extend session expiration
         if (remember) {

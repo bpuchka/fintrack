@@ -101,7 +101,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 // Store token if you need it for future requests
                 localStorage.setItem('token', data.token);
                 // Redirect to home page
-                window.location.href = "/";
+                window.location.href = "/home/";
             } else {
                 throw new Error('No token received');
             }

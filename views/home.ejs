@@ -36,10 +36,7 @@
                         <a href="/login" class="button login-btn">Вход</a>
                     </div>
                 <% } else { %>
-                    <div class="welcome-message">
-                        <p>Добре дошъл, <%= user.username %>!</p>
                         <a href="/logout" class="button login-btn">Изход</a>
-                    </div>
                 <% } %>
             </div>
         </div>
@@ -61,7 +58,8 @@
                     </div>
                 </div>
             <% } else { %>
-                <h2 class="welcome-text">Радваме се, че се завърнахте, <%= user.username  %>!</h2>
+                <h2 class="welcome-text" style="font: 90%;">Добре дошъл,</h2>
+                <h2> <a style="color: #6dc0e0;"><%= user.username  %><a>!</h2>
             <% } %>
         </div>
         
