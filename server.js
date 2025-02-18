@@ -144,13 +144,14 @@ app.get("/dashboard", requireAuth, (req, res) => {
     res.render("dashboard", { user: req.session.user });
 });
 
-// 404 Handler (MUST be the last route)
-app.use((req, res) => {
-    res.status(404).sendFile(path.join(__dirname, "views", "404.html"));
-});
-
 // API routes
 app.use("/api/auth", require("./routes/auth.routes.js"));
+
+
+// 404 Handler (MUST be the last route)
+app.use((req, res) => {
+    res.status(404).sendFile(path.join(__dirname, "public", "404.html"));
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
