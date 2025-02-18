@@ -41,19 +41,15 @@ const requireAuth = (req, res, next) => {
     next();
 };
 
+//redirect / to /home
+app.get("/", (req, res) => {
+    res.render("home", { user: req.session.user || null });
+});
+
 // Routes that don't require authentication
 app.get("/home", (req, res) => {
     res.render("home", { user: req.session.user || null });
 });
-
-app.get("/home", (req, res) => {
-    if (!req.session.user) {
-        return res.redirect("/login"); // Ensure user is logged in
-    }
-
-    res.render("home", { user: req.session.user }); // Pass user object
-});
-
 
 
 app.get("/register", (req, res) => {
@@ -148,6 +144,11 @@ app.get("/dashboard", requireAuth, (req, res) => {
     res.render("dashboard", { user: req.session.user });
 });
 
+// 404 Handler (MUST be the last route)
+app.use((req, res) => {
+    res.status(404).sendFile(path.join(__dirname, "views", "404.html"));
+});
+
 // API routes
 app.use("/api/auth", require("./routes/auth.routes.js"));
 
@@ -159,11 +160,6 @@ app.use((err, req, res, next) => {
             ? 'Something went wrong!' 
             : err.message 
     });
-});
-
-// 404 handler
-app.use((req, res) => {
-    res.status(404).render('404 - Page Not Found');
 });
 
 const PORT = process.env.PORT || 5000;
