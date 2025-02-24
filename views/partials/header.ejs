@@ -1,0 +1,97 @@
+<header>
+    <div class="left-side-header">
+      <div class="logo">
+        <a href="/home">
+          <img src="/fintrack-header-logo.svg" alt="Logo">
+        </a>
+      </div>
+      <div class="menu-icon">
+        <img src="/design/menu.svg" alt="Menu">
+      </div>
+    </div>
+  
+    <div class="menu-container">
+      <nav>
+        <ul>
+          <% if (!user) { %>
+            <li><a href="/home">Начало</a></li>
+            <li><a href="/blog">Блог</a></li>
+            <li><a href="/contacts">Контакти</a></li>
+          <% } else { %>
+            <li>
+              <a href="/portfolio">Портфолио</a>
+            </li>
+            <li class="dropdown">
+              <a href="/investments">
+                Инвестиции 
+                <img src="/design/arrow-down.svg" alt="Инвестиции dropdown" style="width: 10%;">
+              </a>
+              <div class="dropdown-content">
+                <a href="/investments/bank">Банков влог</a>
+                <a href="/investments/crypto">Крипто</a>
+                <a href="/investments/stocks">Акции</a>
+                <a href="/investments/metals">Метали</a>
+              </div>
+            </li>
+            <li><a href="/blog">Блог</a></li>
+          <% } %>
+        </ul>
+      </nav>
+  
+      <div class="right-side-header">
+        <% if (!user) { %>
+          <div class="login-register-section">
+            <a href="/register" class="button register-btn">Регистрация</a>
+            <a href="/login" class="button login-btn">Вход</a>
+          </div>
+        <% } else { %>
+          <div class="dropdown profile-dropdown">
+            <a href="/profile" class="profile-btn">
+              Профил
+              <img src="/design/arrow-down.svg" alt="Профил dropdown" style="width: 10%;">
+            </a>
+            <div class="dropdown-content">
+              <a href="/profile/overview">Акаунт</a>
+              <a href="/logout">Изход</a>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </header>
+  
+
+  <!-- Inline JavaScript to handle mobile toggles -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // Toggle the mobile menu when the menu icon is clicked
+      const menuIcon = document.querySelector('.menu-icon');
+      const menuContainer = document.querySelector('.menu-container');
+      
+      menuIcon.addEventListener('click', function() {
+        menuContainer.classList.toggle('active');
+      });
+  
+      // For mobile: toggle dropdown menus when their links are touched/clicked
+      const dropdownLinks = document.querySelectorAll('.menu-container .dropdown > a');
+      dropdownLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+          if(window.innerWidth <= 768) {
+            // Prevent default navigation for touch toggle
+            e.preventDefault();
+            const dropdown = this.parentElement;
+            // Toggle active class: if it already has "active", remove it (thus closing the dropdown)
+            if (dropdown.classList.contains('active')) {
+              dropdown.classList.remove('active');
+            } else {
+              // Optionally, close any other open dropdowns:
+              document.querySelectorAll('.menu-container .dropdown.active').forEach(openDropdown => {
+                openDropdown.classList.remove('active');
+              });
+              dropdown.classList.add('active');
+            }
+          }
+        });
+      });
+    });
+  </script>  

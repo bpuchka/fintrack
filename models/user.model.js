@@ -4,6 +4,7 @@ const User = function(user) {
   this.username = user.username;
   this.email = user.email;
   this.password = user.password;
+  this.role = user.role || 'normal'; // default role is 'normal'
 };
 
 User.create = (newUser, result) => {

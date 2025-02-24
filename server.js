@@ -41,43 +41,33 @@ const requireAuth = (req, res, next) => {
     next();
 };
 
-//redirect / to /home
+// Public Routes
 app.get("/", (req, res) => {
     res.render("home", { user: req.session.user || null });
 });
 
-// Routes that don't require authentication
 app.get("/home", (req, res) => {
     res.render("home", { user: req.session.user || null });
 });
 
-
 app.get("/register", (req, res) => {
-    // Redirect if user is already logged in
     if (req.session.user) {
         return res.redirect('/');
     }
     res.render("register");
 });
 
-//register post route
+// Register POST route
 app.post("/api/auth/register", async (req, res) => {
     const { username, email, password } = req.body;
-
     try {
-        // Check if email already exists
         const [existingUser] = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
         if (existingUser.length > 0) {
             return res.status(400).json({ message: "Email already exists" });
         }
-
-        // Hash password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
-
-        // Insert new user
         await pool.query("INSERT INTO users (username, email, password) VALUES (?, ?, ?)", [username, email, hashedPassword]);
-
         res.json({ message: "Registration successful" });
     } catch (err) {
         console.error(err);
@@ -86,42 +76,29 @@ app.post("/api/auth/register", async (req, res) => {
 });
 
 app.get("/login", (req, res) => {
-    // Redirect if user is already logged in
     if (req.session.user) {
         return res.redirect('/');
     }
     res.render("login");
 });
 
-// Login post route
+// Login POST route
 app.post("/login", async (req, res) => {
     const { email, password, remember } = req.body;
-    
     try {
-        // Check if user exists in the database
         const [user] = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
-
         if (user.length === 0) {
             return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
-
-        // Check password using bcrypt
         const validPassword = await bcrypt.compare(password, user[0].password);
-
         if (!validPassword) {
             return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
-
-        // Save user in session
         req.session.user = { id: user[0].id, email: user[0].email, username: user[0].username };
-
-        // If "Remember Me" is checked, extend session expiration
         if (remember) {
             req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
         }
-
         res.json({ success: true, message: "Login successful", token: "fake-jwt-token" });
-
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: "Server error" });
@@ -134,44 +111,42 @@ app.get("/logout", (req, res) => {
             console.error('Error destroying session:', err);
             return res.status(500).json({ message: "Error logging out" });
         }
-        res.clearCookie('connect.sid'); // Clear the session cookie
+        res.clearCookie('connect.sid');
         res.redirect("/");
     });
 });
 
-// Routes that require authentication
+// Authenticated Route
 app.get("/dashboard", requireAuth, (req, res) => {
     res.render("dashboard", { user: req.session.user });
 });
 
-// API routes
+// API Routes
 app.use("/api/auth", require("./routes/auth.routes.js"));
+app.use("/api/investments", require("./routes/investment.routes.js"));
 
-
-// 404 Handler (MUST be the last route)
-app.use((req, res) => {
+// 404 Handler - Catch-all for unmatched routes
+app.use((req, res, next) => {
     res.status(404).sendFile(path.join(__dirname, "public", "404.html"));
 });
 
-// Error handling middleware
+// Error Handling Middleware - Must be defined after all other routes
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).render('error', { 
-        message: process.env.NODE_ENV === 'production' 
-            ? 'Something went wrong!' 
-            : err.message 
+        message: process.env.NODE_ENV === 'production' ? 'Something went wrong!' : err.message 
     });
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}.`);
 });
 
-// Graceful shutdown
+// Graceful Shutdown
 process.on('SIGTERM', () => {
     console.log('SIGTERM signal received: closing HTTP server');
-    app.close(() => {
+    server.close(() => {
         console.log('HTTP server closed');
         pool.end(() => {
             console.log('Database connection closed');

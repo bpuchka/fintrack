@@ -1,0 +1,270 @@
+header{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    height: 10%;
+    background-color: #2c2c2c;
+    color: #f5f5f5;
+    font-size: 1.5rem;
+    font-weight: 600;
+    border-bottom: 1px solid #444;
+    padding: 0 1%;
+    position: fixed;
+    top: 0;
+}
+
+.left-side-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.logo img {
+    height: 4rem; /* Adjust height as needed */
+    display: block;
+    margin-left: 6rem;
+}
+
+.menu-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Added to distribute space */
+    flex: 1; /* Takes up remaining space */
+    margin: 0 4rem; /* Add margin for spacing from logo and profile */
+}
+
+.menu-icon {
+    display: none; /* Hidden by default */
+    cursor: pointer;
+}
+
+.menu-icon img {
+    width: 40px;
+    height: 40px;
+}
+
+header nav {
+    flex: 1; /* Take up available space */
+}
+
+header nav ul {
+    display: flex;
+    justify-content: space-between; /* Changed from center to space-between */
+    align-items: center;
+    list-style: none;
+    gap: 20px;
+    margin: 0;
+    padding: 0;
+    max-width: 400px; /* Limit the width of navigation items */
+}
+
+header a{
+    color: #f5f5f5;
+    text-decoration: none;
+}
+
+header .button{
+    padding: 10px 14px;
+    font-size: calc(var(--base-font) * 0.9);
+    font-weight: 600;
+    text-wrap: nowrap; 
+}
+
+
+/* Logged user css */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+/* Add styles for the investment dropdown arrow */
+.dropdown > a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* Adds space between text and arrow */
+}
+
+.dropdown > a img {
+    width: 16px; /* Fixed width instead of percentage */
+    height: auto;
+    margin-top: 2px; /* Slight adjustment to align with text */
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #2c2c2c;
+    min-width: 200px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    z-index: 1;
+    border-radius: 5px;
+    border: 1px solid #444;
+}
+
+.dropdown-content a {
+    color: #f5f5f5;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    font-size: calc(var(--base-font) * 0.9);
+}
+
+.dropdown-content a:hover {
+    background-color: #3c3c3c;
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+.profile-dropdown {
+    margin-left: 20px;
+}
+
+.profile-btn {
+    color: #f5f5f5;
+    text-decoration: none;
+    padding: 10px 3rem;
+    font-size: calc(var(--base-font) * 0.9);
+    font-weight: 600;
+}
+/* end of logged user header*/
+
+.right-side-header {
+    display: flex;
+    justify-content: flex-end; /* Align to the right */
+    min-width: fit-content; /* Prevent squishing */
+}
+
+.login-register-section{
+    display: flex;
+    gap: 4rem;
+    padding-left: 20%;
+}
+
+.button, button:hover {
+    text-decoration: none;
+    color: #1e1e1e;
+}
+.login-btn, .register-btn {
+    text-decoration: none;
+    border-radius: 5px;
+    text-align: center;
+    display: inline-block;
+}
+
+.login-btn{
+    background-color: #ffffff;
+    color: #6dc0e0 !important;
+}
+
+.register-btn{
+    color: #f5f5f5 !important;
+    background-color: #6dc0e0
+}
+
+@media (max-width: 1024px) {
+    header .register-btn{display: none;}
+}
+
+@media (max-width: 768px) {
+    header {
+        padding: 0 1rem;
+    }
+
+    .logo img {
+        margin: 0rem; /* Adjust margin for smaller screens */
+        margin-top: 0.2rem; /* Adjust margin for smaller screens */
+    }
+
+    .menu-icon {
+        display: block !important;  /* Show menu icon */
+        margin-left: -3rem;
+    }
+
+    .dropdown:not(.active) .dropdown-content {
+        display: none;
+    }
+
+    .dropdown.active .dropdown-content {
+        display: block;
+    }
+    .menu-container {
+        display: none; /* Hidden by default */
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: #2c2c2c;
+        margin: 0;
+        padding: 1rem 0;
+        flex-direction: column;
+        z-index: 100;
+    }
+
+    .menu-container.active {
+        display: flex;
+    }
+
+    header nav ul {
+        flex-direction: column;
+        width: 100%;
+        gap: 0;
+    }
+
+    header nav ul li {
+        width: 100%;
+    }
+
+    header nav ul li a {
+        padding: 1rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+
+    /* Mobile dropdown styles */
+    .dropdown-content {
+        display: none;
+        position: static;
+        width: 100%;
+        box-shadow: none;
+        border: none;
+        background-color: #3c3c3c;
+    }
+
+    .dropdown-content a {
+        padding-left: 3rem !important; /* Indent dropdown items */
+    }
+
+    /* Adjustments for right-side header elements on mobile */
+    .right-side-header, .profile-dropdown, .login-register-section {
+        width: 100%;
+        margin: 0;
+    }
+    .profile-dropdown {
+        width: 100%;
+        margin: 0;
+    }
+
+    .profile-btn {
+        padding: 1rem 2rem;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .login-register-section {
+        width: 100%;
+        padding: 0 2rem;
+        gap: 1rem;
+    }
+
+    .register-btn, .login-btn {
+        width: 100%;
+        text-align: center;
+        padding: 0.8rem;
+    }
+}
