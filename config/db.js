@@ -1,4 +1,4 @@
-const mysql = require("mysql2");
+const mysql = require("mysql2/promise");
 require("dotenv").config(); // Load environment variables
 
 const pool = mysql.createPool({
@@ -8,7 +8,12 @@ const pool = mysql.createPool({
     database: process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
-}).promise(); // Enables async/await
+    queueLimit: 0,
+    // Add this to handle authentication issues
+    ssl: false,
+    authPlugins: {
+        mysql_native_password: () => () => Buffer.from(process.env.DB_PASSWORD)
+    }
+});
 
 module.exports = pool;

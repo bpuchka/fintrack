@@ -6,3 +6,9 @@ node_modules/
 
 # Ignore log files
 *.log
+
+# Ignore cached files
+services/cache/
+
+# Ignore demo data
+services/demo_data/

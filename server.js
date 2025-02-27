@@ -5,8 +5,15 @@ const path = require("path");
 const session = require("express-session");
 const pool = require("./config/db");
 const bcrypt = require("bcryptjs");
+const cron = require("node-cron");
+const { fetchAndStoreDailyPrices, fetchAndStoreIntradayPrices } = require("./services/fetchPrices");
+
 
 const app = express();
+
+const priceRoutes = require("./routes/price.routes");
+app.use("/api/prices", priceRoutes);
+
 
 // Middleware
 app.use(cors({
@@ -124,6 +131,7 @@ app.get("/dashboard", requireAuth, (req, res) => {
 // API Routes
 app.use("/api/auth", require("./routes/auth.routes.js"));
 app.use("/api/investments", require("./routes/investment.routes.js"));
+app.use("/api/prices", require("./routes/price.routes.js"));
 
 // 404 Handler - Catch-all for unmatched routes
 app.use((req, res, next) => {
@@ -154,3 +162,16 @@ process.on('SIGTERM', () => {
         });
     });
 });
+
+// ✅ CRON JOBS (placed last)
+cron.schedule("0 0 * * *", async () => {
+    console.log("Running daily price update...");
+    await fetchAndStoreDailyPrices();
+    console.log("Daily price update complete.");
+  });
+  
+  cron.schedule("*/5 * * * *", async () => {
+    console.log("Running intraday price update...");
+    await fetchAndStoreIntradayPrices();
+    console.log("Intraday price update complete.");
+  });
