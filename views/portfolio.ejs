@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Портфолио - FinTrack</title>
+    <link rel="stylesheet" href="/home/header-design.css">
+    <link rel="stylesheet" href="/home/home-design.css">
+    <link rel="stylesheet" href="/portfolio/portfolio-design.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    
+    <%- include('partials/header') %>
+
+    <main class="dashboard-container">
+        <div class="dashboard-header">
+            <h1>Вашето <a style="color: #6dc0e0;">портфолио</a></h1>
+            <p class="last-updated">Последно обновено: <span id="last-updated-date">28.02.2025</span></p>
+        </div>
+
+        <div class="dashboard-summary">
+            <div class="summary-card total-value">
+                <h2>Обща стойност</h2>
+                <p class="amount"><%= user.portfolioValue || "10,250.00" %> лв.</p>
+                <p class="change positive">+3.8% от миналия месец</p>
+            </div>
+            <div class="summary-card monthly-profit">
+                <h2>Месечна печалба</h2>
+                <p class="amount">325.50 лв.</p>
+                <p class="change positive">+5.2% от предходния месец</p>
+            </div>
+            <div class="summary-card new-investment">
+                <h2>Добави нова инвестиция</h2>
+                <p class="new-investment-desc">Започнете да следите нова инвестиция от всеки тип</p>
+                <button id="newInvestmentBtn" class="new-investment-button">
+                    <span>+ Нова инвестиция</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="dashboard-charts">
+            <div class="chart-container">
+                <h2>Разпределение на инвестициите</h2>
+                <div class="chart-wrapper">
+                    <canvas id="investment-chart"></canvas>
+                </div>
+            </div>
+            <div class="portfolio-details">
+                <h2>Детайли за инвестициите</h2>
+                <div class="investment-list">
+                    <div class="investment-item">
+                        <div class="investment-info">
+                            <div class="investment-color" style="background-color: #6dc0e0;"></div>
+                            <div class="investment-name">Банков влог</div>
+                        </div>
+                        <div class="investment-value">3,500.00 лв.</div>
+                        <div class="investment-percentage">34.1%</div>
+                    </div>
+                    <div class="investment-item">
+                        <div class="investment-info">
+                            <div class="investment-color" style="background-color: #8e44ad;"></div>
+                            <div class="investment-name">Крипто</div>
+                        </div>
+                        <div class="investment-value">2,250.00 лв.</div>
+                        <div class="investment-percentage">22.0%</div>
+                    </div>
+                    <div class="investment-item">
+                        <div class="investment-info">
+                            <div class="investment-color" style="background-color: #27ae60;"></div>
+                            <div class="investment-name">Акции</div>
+                        </div>
+                        <div class="investment-value">3,800.00 лв.</div>
+                        <div class="investment-percentage">37.1%</div>
+                    </div>
+                    <div class="investment-item">
+                        <div class="investment-info">
+                            <div class="investment-color" style="background-color: #f39c12;"></div>
+                            <div class="investment-name">Метали</div>
+                        </div>
+                        <div class="investment-value">700.00 лв.</div>
+                        <div class="investment-percentage">6.8%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-actions">
+            <a href="/investments" class="action-button">
+                <span>Управлявай инвестиции</span>
+            </a>
+            <a href="/portfolio/history" class="action-button secondary">
+                <span>История на портфолиото</span>
+            </a>
+        </div>
+    </main>
+
+    <!-- New Investment Modal -->
+    <div id="newInvestmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добави нова инвестиция</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="newInvestmentForm">
+                    <div class="form-group">
+                        <label for="investmentType">Тип инвестиция</label>
+                        <select id="investmentType" name="investmentType" required>
+                            <option value="" disabled selected>Изберете тип</option>
+                            <option value="bank">Банков влог</option>
+                            <option value="crypto">Крипто</option>
+                            <option value="stock">Акции</option>
+                            <option value="metal">Метали</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Standard fields for Crypto/Stocks/Metals -->
+                    <div id="standardFields">
+                        <div class="form-group">
+                            <label for="investmentSymbol">Символ</label>
+                            <select id="investmentSymbol" name="investmentSymbol" required>
+                                <option value="" disabled selected>Изберете символ</option>
+                                <!-- Options will be populated dynamically based on investment type -->
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="investmentAmount">Количество</label>
+                            <input type="number" id="investmentAmount" name="investmentAmount" placeholder="0.00" step="0.01" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="investmentPrice">Покупна цена (лв)</label>
+                            <input type="number" id="investmentPrice" name="investmentPrice" placeholder="0.00" step="0.01" required>
+                        </div>
+                    </div>
+                    
+                    <!-- Bank deposit specific fields -->
+                    <div id="bankDepositFields" style="display: none;">
+                        <div class="form-group">
+                            <label for="depositCurrency">Валута</label>
+                            <select id="depositCurrency" name="depositCurrency" required>
+                                <option value="BGN">Български лев (BGN)</option>
+                                <option value="USD">Щатски долар (USD)</option>
+                                <option value="EUR">Евро (EUR)</option>
+                                <option value="GBP">Британска лира (GBP)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="depositAmount">Сума</label>
+                            <input type="number" id="depositAmount" name="depositAmount" placeholder="0.00" step="0.01" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="interestRate">Лихвен процент (%)</label>
+                            <input type="number" id="interestRate" name="interestRate" placeholder="0.00" step="0.01" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="interestType">Тип на лихвата</label>
+                            <select id="interestType" name="interestType" required>
+                                <option value="daily">Дневна</option>
+                                <option value="monthly_1">Месечна (1 месец)</option>
+                                <option value="monthly_3">Месечна (3 месеца)</option>
+                                <option value="monthly_6">Месечна (6 месеца)</option>
+                                <option value="yearly">Годишна</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="investmentDate">Дата на покупка</label>
+                        <input type="date" id="investmentDate" name="investmentDate" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="investmentNotes">Бележки (незадължително)</label>
+                        <textarea id="investmentNotes" name="investmentNotes" placeholder="Допълнителна информация за инвестицията"></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button" id="cancelInvestment">Отказ</button>
+                        <button type="submit" class="submit-button">Добави инвестиция</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="../fintrack-header-logo.svg" alt="Logo">
+            </div>
+            <div class="footer-menu">
+                <nav>
+                    <ul>
+                        <li><a href="/home">Начало</a></li>
+                        <li><a href="/blog">Блог</a></li>
+                        <li><a href="/contact">Контакти</a></li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="footer-social-media">
+                <a href="#">Facebook</a>
+                <a href="#">Instagram</a>
+                <a href="#">Twitter/X</a>
+            </div>
+        </div>
+    </footer>
+    <script src="/portfolio/portfolio-script.js"></script>
+</body>
+</html>

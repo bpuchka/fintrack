@@ -124,14 +124,16 @@ app.get("/logout", (req, res) => {
 });
 
 // Authenticated Route
-app.get("/dashboard", requireAuth, (req, res) => {
-    res.render("dashboard", { user: req.session.user });
+app.get("/portfolio", requireAuth, (req, res) => {
+    res.render("portfolio", { user: req.session.user });
 });
 
 // API Routes
 app.use("/api/auth", require("./routes/auth.routes.js"));
-app.use("/api/investments", require("./routes/investment.routes.js"));
+app.use("/api/prices", require("./routes/investment-prices.routes.js"));
 app.use("/api/prices", require("./routes/price.routes.js"));
+app.use("/api/investments", require("./routes/investments.routes.js"));
+app.use("/api/portfolio", require("./routes/portfolio.routes"));
 
 // 404 Handler - Catch-all for unmatched routes
 app.use((req, res, next) => {
@@ -163,15 +165,15 @@ process.on('SIGTERM', () => {
     });
 });
 
-// ✅ CRON JOBS (placed last)
+/* ✅ CRON JOBS (placed last)
 cron.schedule("0 0 * * *", async () => {
     console.log("Running daily price update...");
     await fetchAndStoreDailyPrices();
     console.log("Daily price update complete.");
   });
   
-  cron.schedule("*/5 * * * *", async () => {
+cron.schedule("* /5 * * * *", async () => { "  // kato se maha komentara da se mahne razstoqnieto mezhdu / i *
     console.log("Running intraday price update...");
     await fetchAndStoreIntradayPrices();
     console.log("Intraday price update complete.");
-  });
+  }); */
