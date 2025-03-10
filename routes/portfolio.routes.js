@@ -27,25 +27,60 @@ router.get("/", requireAuth, async (req, res) => {
             [userId]
         );
         
-        // Fetch latest pricing data for calculations (if you have a prices table)
+        // Define hardcoded exchange rates (BGN to other currencies)
+        // Only used as fallback if currency prices are not available
+        const currencyRates = {
+            'USD': 1,      // USD is the base currency
+            'BGN': 1.78,   // Default fallback rate (USD to BGN)
+            'EUR': 0.91,   // Default fallback rate (USD to EUR)
+            'GBP': 0.77    // Default fallback rate (USD to GBP)
+        };
+        
+        // Fetch latest prices from investment_prices table
+        // This includes forex prices (USD/EUR, etc.) that we can use for currency conversion
         let priceMap = {};
         try {
-            const [prices] = await pool.query(
-                `SELECT symbol, price FROM investment_prices 
-                 WHERE (symbol, timestamp) IN (
-                    SELECT symbol, MAX(timestamp) 
-                    FROM investment_prices 
+            const [prices] = await pool.query(`
+                SELECT ip.symbol, ip.price, ip.asset_type
+                FROM investment_prices ip
+                INNER JOIN (
+                    SELECT symbol, MAX(timestamp) as max_timestamp
+                    FROM investment_prices
                     GROUP BY symbol
-                 )`
-            );
+                ) latest
+                ON ip.symbol = latest.symbol 
+                AND ip.timestamp = latest.max_timestamp
+            `);
             
-            // Create a price lookup map
+            // Create price lookup map
             prices.forEach(price => {
-                priceMap[price.symbol] = price.price;
+                priceMap[price.symbol] = {
+                    price: parseFloat(price.price),
+                    assetType: price.asset_type
+                };
             });
+            
+            // Add special handling for USD/BGN conversion if available in price data
+            if (priceMap['BGN'] && priceMap['BGN'].price > 0) {
+                // USD to BGN rate is available directly
+                currencyRates['USD'] = priceMap['BGN'].price;
+            }
+            
+            // Add special handling for EUR/BGN conversion if available in price data
+            if (priceMap['EUR'] && priceMap['EUR'].price > 0) {
+                // USD to EUR rate, need to convert to BGN
+                const usdToEur = priceMap['EUR'].price;
+                if (currencyRates['USD']) {
+                    // EUR to BGN = (USD to BGN) / (USD to EUR)
+                    currencyRates['EUR'] = currencyRates['USD'] / usdToEur;
+                }
+            }
+            
+            // Similar for other currencies if they exist in your price data
+            
         } catch (error) {
             console.log("Price data not available:", error.message);
-            // Continue without price data
+            // Continue with hardcoded exchange rates
         }
         
         // Process investments and calculate current values
@@ -53,49 +88,49 @@ router.get("/", requireAuth, async (req, res) => {
             const result = { 
                 ...investment,
                 // Ensure numeric types for calculations
-                quantity: parseFloat(investment.quantity),
-                purchase_price: parseFloat(investment.purchase_price),
+                quantity: parseFloat(investment.quantity || 0),
+                purchase_price: parseFloat(investment.purchase_price || 0),
                 interest_rate: investment.interest_rate ? parseFloat(investment.interest_rate) : 0
             };
             
             // Determine investment type if not explicitly stored
             if (!investment.investment_type) {
-                if (investment.symbol.startsWith('BANK_')) {
+                if (investment.symbol && investment.symbol.startsWith('BANK_')) {
                     result.investment_type = 'bank';
-                    
-                    // Extract currency and rate from symbol if not stored separately
-                    if (!investment.currency && investment.symbol.includes('_')) {
-                        const parts = investment.symbol.split('_');
-                        if (parts.length > 1) {
-                            result.currency = parts[1];
-                        }
-                        if (parts.length > 2) {
-                            result.interest_rate = parseFloat(parts[2]);
-                        }
-                    }
                 } else if (['BTC', 'ETH', 'USDT', 'SOL', 'XRP'].includes(investment.symbol)) {
                     result.investment_type = 'crypto';
                 } else if (['AAPL', 'TSLA', 'NVDA'].includes(investment.symbol)) {
                     result.investment_type = 'stock';
                 } else if (['GLD', 'SLV'].includes(investment.symbol)) {
-                    result.investment_type = 'metal';
+                    result.investment_type = 'etf';
                 } else {
                     result.investment_type = 'other';
                 }
             }
             
+            // Extract currency from bank symbol if needed
+            if (result.investment_type === 'bank' && !result.currency && result.symbol && result.symbol.includes('_')) {
+                result.currency = result.symbol.split('_')[1];
+            }
+            
+            // Ensure we have a currency for calculation purposes
+            const currency = result.currency || 'BGN';
+            // Use our hardcoded rates for currency conversion
+            const exchangeRate = currencyRates[currency] || 1;
+            
             // Format display values based on investment type
             if (result.investment_type === 'bank') {
                 // Process bank deposit
                 result.displayType = 'Банков влог';
-                result.displayName = `${result.currency || 'BGN'} депозит`;
-                result.displayAmount = `${parseFloat(result.quantity).toFixed(2)} ${result.currency || 'BGN'}`;
+                result.displayName = `${currency} депозит`;
+                result.displayAmount = `${result.quantity.toFixed(2)} ${currency}`;
                 result.displayRate = `${result.interest_rate || 0}%`;
                 
                 // Calculate current value based on interest
                 let monthsHeld = monthsBetween(new Date(result.purchase_date), new Date());
-                let interestMultiplier = 1;
+                if (isNaN(monthsHeld)) monthsHeld = 0; // Safeguard against invalid dates
                 
+                let interestMultiplier = 1;
                 const interestRate = result.interest_rate || 0;
                 
                 // Default to yearly if not specified
@@ -120,20 +155,32 @@ router.get("/", requireAuth, async (req, res) => {
                         break;
                 }
                 
-                result.currentValue = result.quantity * interestMultiplier;
-                result.profit = result.currentValue - result.quantity;
-                result.profitPercentage = ((result.currentValue / result.quantity) - 1) * 100;
+                // Convert to BGN using our exchange rate
+                result.currentValue = result.quantity * interestMultiplier * exchangeRate;
+                result.profit = result.currentValue - (result.quantity * exchangeRate);
+                result.profitPercentage = ((interestMultiplier) - 1) * 100;
             } else {
-                // Process crypto, stock, or metal investment
+                // Process crypto, stock, or etf investment
                 result.displayType = getDisplayType(result.investment_type);
                 result.displayName = result.symbol;
                 result.displayAmount = `${result.quantity.toFixed(2)} ${result.symbol}`;
                 
+                // Get current price or use purchase price as fallback
+                let currentPrice = result.purchase_price;
+                if (priceMap[result.symbol]) {
+                    currentPrice = priceMap[result.symbol].price;
+                }
+                
                 // Calculate current value based on latest price
-                const currentPrice = priceMap[result.symbol] || result.purchase_price;
                 result.currentValue = result.quantity * currentPrice;
                 result.profit = result.currentValue - (result.quantity * result.purchase_price);
-                result.profitPercentage = ((currentPrice / result.purchase_price) - 1) * 100;
+                result.profitPercentage = result.purchase_price > 0 ? 
+                    ((currentPrice / result.purchase_price) - 1) * 100 : 0;
+                
+                // Convert to BGN if prices are in USD (which they are according to your description)
+                if (currencyRates['USD'] && currencyRates['USD'] > 0) {
+                    result.currentValue *= currencyRates['USD'];
+                }
             }
             
             return result;
@@ -150,14 +197,22 @@ router.get("/", requireAuth, async (req, res) => {
                 bank: { amount: 0, percentage: 0 },
                 crypto: { amount: 0, percentage: 0 },
                 stock: { amount: 0, percentage: 0 },
-                metal: { amount: 0, percentage: 0 }
+                etf: { amount: 0, percentage: 0 }
             }
         };
         
         // Calculate totals
         processedInvestments.forEach(inv => {
-            summary.totalInvestment += inv.investment_type === 'bank' ? 
-                inv.quantity : (inv.quantity * inv.purchase_price);
+            // For banks, calculate initial investment in BGN
+            const currency = inv.currency || 'BGN';
+            const exchangeRate = currencyRates[currency] || 1;
+            
+            // Calculate the initial investment in BGN
+            const initialInvestment = inv.investment_type === 'bank' 
+                ? inv.quantity * exchangeRate 
+                : (inv.quantity * inv.purchase_price * (currencyRates['USD'] || 1));
+                
+            summary.totalInvestment += initialInvestment;
             summary.totalCurrentValue += inv.currentValue;
             
             // Add to type-specific totals
@@ -182,6 +237,11 @@ router.get("/", requireAuth, async (req, res) => {
             }
         }
         
+        // Update the user's portfolio value in the session
+        if (req.session.user) {
+            req.session.user.portfolioValue = summary.totalCurrentValue.toFixed(2);
+        }
+        
         res.json({
             success: true,
             investments: processedInvestments,
@@ -202,7 +262,7 @@ function getDisplayType(type) {
         bank: 'Банков влог',
         crypto: 'Крипто',
         stock: 'Акции',
-        metal: 'Метали',
+        etf: 'ETFs',
         other: 'Други'
     };
     return typeMap[type] || type;

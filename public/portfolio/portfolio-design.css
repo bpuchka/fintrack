@@ -355,6 +355,60 @@ body{
     padding-right: 2.5rem;
 }
 
+.form-note {
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+.currency-input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.currency-input-container input {
+    flex-grow: 1;
+}
+
+.currency-display {
+    position: absolute;
+    right: 12px;
+    color: #aaa;
+    pointer-events: none;
+    font-size: 0.9rem;
+}
+
+.investment-item-detail {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.5rem;
+}
+
+.investment-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #aaa;
+    margin-top: 0.2rem;
+}
+
+.investment-currency-tag {
+    background-color: #3c3c3c;
+    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+    color: #ddd;
+}
+
+/* Enhance the investment list items to show currency */
+.investment-value-container {
+    display: flex;
+    align-items: center;
+}
+
 /* Form actions */
 .form-actions {
     display: flex;

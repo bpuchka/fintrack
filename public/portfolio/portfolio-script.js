@@ -51,42 +51,89 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Function to load portfolio data from server
+    // Modified loadPortfolioData function to handle potential missing data
     async function loadPortfolioData() {
         try {
-            const response = await fetch('/api/portfolio');
+            const response = await fetch('/api/investments/summary');
             if (!response.ok) {
                 throw new Error('Failed to load portfolio data');
             }
             
             const data = await response.json();
             
+            if (!data.success) {
+                throw new Error(data.message || 'Error loading portfolio data');
+            }
+            
             // Store data globally for access by other functions
             window.portfolioData = data;
+            
+            // Make sure all necessary properties exist to avoid errors
+            if (!data.summary) {
+                data.summary = {
+                    totalInvested: 0,
+                    totalCurrentValue: 0,
+                    profitPercentage: 0,
+                    monthlyProfit: 0,
+                    byType: {
+                        bank: { amount: 0, percentage: 0 },
+                        crypto: { amount: 0, percentage: 0 },
+                        stock: { amount: 0, percentage: 0 },
+                        metal: { amount: 0, percentage: 0 }
+                    }
+                };
+            }
             
             // Update portfolio value in the UI
             const totalValueElement = document.querySelector('.total-value .amount');
             if (totalValueElement) {
                 totalValueElement.textContent = 
-                    `${data.summary.totalCurrentValue.toFixed(2)} лв.`;
+                    `${formatCurrency(data.summary.totalCurrentValue)} лв.`;
             }
             
-            // Update profit/change
+            // Calculate total initial investment value and total current value
+            let totalInitialValue = 0;
+            let totalCurrentValue = 0;
+            
+            if (data.investments && data.investments.length > 0) {
+                data.investments.forEach(investment => {
+                    // For each investment, add the initial purchase value
+                    const initialValue = investment.quantity * investment.purchase_price;
+                    totalInitialValue += initialValue;
+                    
+                    // Add the current value
+                    totalCurrentValue += investment.current_value || initialValue;
+                });
+            } else {
+                // If no investments are found, use the summary data
+                totalInitialValue = data.summary.totalInvested || 0;
+                totalCurrentValue = data.summary.totalCurrentValue || 0;
+            }
+            
+            // Calculate percentage change from initial to current value
+            let percentageChange = 0;
+            if (totalInitialValue > 0) {
+                percentageChange = ((totalCurrentValue / totalInitialValue) - 1) * 100;
+            }
+            
+            // Update profit/change with the calculated percentage
             const profitElement = document.querySelector('.total-value .change');
             if (profitElement) {
-                const profitPercentage = data.summary.profitPercentage.toFixed(1);
+                const profitPercentage = percentageChange.toFixed(1);
                 profitElement.textContent = `${profitPercentage >= 0 ? '+' : ''}${profitPercentage}% от първоначалната инвестиция`;
                 profitElement.className = `change ${profitPercentage >= 0 ? 'positive' : 'negative'}`;
             }
             
             // Update monthly profit
             const monthlyProfitElement = document.querySelector('.monthly-profit .amount');
-            if (monthlyProfitElement && data.summary.monthlyProfit) {
-                monthlyProfitElement.textContent = `${data.summary.monthlyProfit.toFixed(2)} лв.`;
+            if (monthlyProfitElement && data.summary.monthlyProfit !== undefined) {
+                monthlyProfitElement.textContent = `${formatCurrency(data.summary.monthlyProfit)} лв.`;
             }
             
             // Update pie chart with distribution data
-            updateInvestmentChart(data.summary.byType);
+            if (data.summary.byType) {
+                updateInvestmentChart(data.summary.byType);
+            }
             
             // Update investment list
             updateInvestmentList(data.investments, data.summary);
@@ -142,20 +189,68 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add an item for each investment type that has value
         for (const type in summary.byType) {
+            // Skip types with no value or undefined amount
+            if (!summary.byType[type] || !summary.byType[type].amount) continue;
+            
+            // Only show types with positive values
             if (summary.byType[type].amount > 0) {
                 // Create the investment item
                 const item = document.createElement('div');
                 item.className = 'investment-item';
+                
+                // Format value with currency
+                const displayValue = `${formatCurrency(summary.byType[type].amount, 'BGN')} лв.`;
+                
                 item.innerHTML = `
                     <div class="investment-info">
                         <div class="investment-color" style="background-color: ${colors[type]};"></div>
                         <div class="investment-name">${typeNames[type]}</div>
                     </div>
-                    <div class="investment-value">${summary.byType[type].amount.toFixed(2)} лв.</div>
-                    <div class="investment-percentage">${summary.byType[type].percentage.toFixed(1)}%</div>
+                    <div class="investment-value-container">
+                        <div class="investment-value">${displayValue}</div>
+                    </div>
+                    <div class="investment-percentage">${formatCurrency(summary.byType[type].percentage)}%</div>
                 `;
                 
                 container.appendChild(item);
+                
+                // Find investments of this type
+                const typeInvestments = investments.filter(inv => inv.investment_type === type);
+                
+                // If we have more than 0 but fewer than 6 investments of this type, show details
+                if (typeInvestments.length > 0 && typeInvestments.length < 6) {
+                    // Add a details section for this type
+                    const detailsContainer = document.createElement('div');
+                    detailsContainer.className = 'investment-item-detail';
+                    
+                    typeInvestments.forEach(inv => {
+                        // Check if the current_value exists before using it
+                        const currentValue = inv.current_value !== undefined ? inv.current_value : inv.quantity * inv.purchase_price;
+                        const currentValueBgn = inv.current_value_bgn !== undefined ? inv.current_value_bgn : inv.quantity * inv.purchase_price;
+                        
+                        // Format value with original currency if not BGN
+                        let valueDisplay = '';
+                        
+                        if (inv.currency && inv.currency !== 'BGN') {
+                            valueDisplay = `
+                                <span>${formatCurrency(currentValue, inv.currency)} ${inv.currency}</span>
+                                <span class="investment-currency-tag">≈ ${formatCurrency(currentValueBgn, 'BGN')} лв.</span>
+                            `;
+                        } else {
+                            valueDisplay = `${formatCurrency(currentValueBgn, 'BGN')} лв.`;
+                        }
+                        
+                        const detail = document.createElement('div');
+                        detail.className = 'investment-meta';
+                        detail.innerHTML = `
+                            <span>${inv.symbol} (${parseFloat(inv.quantity).toString()})</span>
+                        `;
+                        
+                        detailsContainer.appendChild(detail);
+                    });
+                    
+                    item.appendChild(detailsContainer);
+                }
             }
         }
         
@@ -184,6 +279,28 @@ document.addEventListener('DOMContentLoaded', function() {
             SLV: { name: "iShares Silver Trust", listingDate: "2006-04-21" }
         }
     };
+
+    // Function to format currency values with proper formatting
+    function formatCurrency(value, currency = 'BGN') {
+        // Handle undefined or null values
+        if (value === undefined || value === null) {
+            return '0.00';
+        }
+        
+        // Parse value to number if it's a string
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        
+        // Handle NaN
+        if (isNaN(numValue)) {
+            return '0.00';
+        }
+        
+        // Format the number with 2 decimal places and thousands separators
+        return numValue.toLocaleString('bg-BG', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
     
     // Form elements
     const modal = document.getElementById('newInvestmentModal');
@@ -286,6 +403,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 populateSymbolDropdown(this.value);
             }
         });
+
+        // Add this to handle currency selection
+        const investmentCurrency = document.getElementById('investmentCurrency');
+        const investmentPrice = document.getElementById('investmentPrice');
+
+        // Update price label based on selected currency
+        if (investmentCurrency && investmentPrice) {
+            investmentCurrency.addEventListener('change', function() {
+                const selectedCurrency = this.value;
+                const priceLabel = investmentPrice.previousElementSibling;
+                if (priceLabel && priceLabel.tagName === 'LABEL') {
+                    priceLabel.textContent = `Покупна цена (${selectedCurrency})`;
+                }
+            });
+        }
         
         // Interest rate validation
         if (interestRate) {
@@ -362,11 +494,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     notes: investmentData.investmentNotes || ''
                 };
             } else {
+                // Handle very small quantities with full precision
+                let quantity = parseFloat(investmentData.investmentAmount);
+                
                 payload = {
                     type: investmentData.investmentType,
                     symbol: investmentData.investmentSymbol,
-                    amount: parseFloat(investmentData.investmentAmount),
+                    amount: quantity,
                     price: parseFloat(investmentData.investmentPrice),
+                    currency: investmentData.investmentCurrency || 'BGN', // Use the new currency field
                     date: investmentData.investmentDate,
                     notes: investmentData.investmentNotes || ''
                 };
@@ -418,6 +554,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitButton.disabled = false;
                 submitButton.textContent = originalButtonText;
             });
-        }
+        };
     }
 });

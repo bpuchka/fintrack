@@ -101,7 +101,13 @@ app.post("/login", async (req, res) => {
         if (!validPassword) {
             return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
-        req.session.user = { id: user[0].id, email: user[0].email, username: user[0].username };
+
+        req.session.user = { 
+            id: user[0].id, 
+            email: user[0].email, 
+            username: user[0].username,
+        };
+
         if (remember) {
             req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
         }
@@ -133,7 +139,7 @@ app.use("/api/auth", require("./routes/auth.routes.js"));
 app.use("/api/prices", require("./routes/investment-prices.routes.js"));
 app.use("/api/prices", require("./routes/price.routes.js"));
 app.use("/api/investments", require("./routes/investments.routes.js"));
-app.use("/api/portfolio", require("./routes/portfolio.routes"));
+app.use("/api/portfolio", require("./routes/portfolio.routes.js"));
 
 // 404 Handler - Catch-all for unmatched routes
 app.use((req, res, next) => {
