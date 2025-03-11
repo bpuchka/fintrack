@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Блог - FinTrack</title>
+    <link rel="stylesheet" href="/home/header-design.css">
+    <link rel="stylesheet" href="/home/home-design.css">
+    <link rel="stylesheet" href="/blog/blog-design.css">
+    <link rel="stylesheet" href="/admin/admin-design.css">
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/5/tinymce.min.js" referrerpolicy="origin"></script>
+</head>
+<body>
+    
+    <%- include('partials/header') %>
+
+    <main class="blog-container">
+        <div class="blog-header">
+            <h1>Финансов <a style="color: #6dc0e0;">блог</a></h1>
+            <p class="blog-subtitle">Научете повече за управлението на лични финанси</p>
+            
+            <!-- Admin "New Post" button - only visible for admins -->
+            <% if (user && user.isAdmin) { %>
+                <button id="newPostBtn" class="admin-button primary">+ Нова статия</button>
+            <% } %>
+        </div>
+
+        <div class="blog-filter">
+            <div class="search-container">
+                <input type="text" id="blogSearch" placeholder="Търсене в блога...">
+                <button id="searchButton">
+                    <img src="/design/magnifying-glass.svg" alt="Search" class="search-icon">
+                </button>
+            </div>
+        </div>
+
+        <div class="blog-grid">
+            <% if (posts && posts.length > 0) { %>
+                <% posts.forEach(post => { %>
+                    <div class="blog-card">
+                        <h2 class="blog-card-title"><%= post.title %></h2>
+                        <div class="blog-card-meta">
+                            <span class="blog-author">От: <%= post.author %></span>
+                            <span class="blog-date"><%= new Date(post.created_at).toLocaleDateString('bg-BG', { year: 'numeric', month: 'long', day: 'numeric' }) %></span>
+                        </div>
+                        <div class="blog-card-content">
+                            <p><%= post.excerpt %></p>
+                        </div>
+                        <div class="blog-card-actions">
+                            <a href="/blog/<%= post.id %>" class="blog-card-link">
+                                <span>Прочети повече</span>
+                                <img src="/design/right-arrow.svg" alt="Arrow" class="arrow-icon">
+                            </a>
+                            
+                            <!-- Admin controls for each blog post - only visible for admins -->
+                            <% if (user && user.isAdmin) { %>
+                                <div class="admin-card-controls">
+                                    <button class="admin-control-btn edit" data-post-id="<%= post.id %>">Промени</button>
+                                    <button class="admin-control-btn delete" data-post-id="<%= post.id %>">Изтрий</button>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                <% }) %>
+            <% } else { %>
+                <div class="no-posts">
+                    <p>Няма публикувани статии в момента.</p>
+                </div>
+            <% } %>
+        </div>
+
+        <% if (totalPages > 1) { %>
+            <div class="pagination">
+                <% if (currentPage > 1) { %>
+                    <a href="/blog?page=<%= currentPage - 1 %><%= searchQuery ? `&search=${searchQuery}` : '' %>" class="pagination-button prev">Предишна</a>
+                <% } %>
+                
+                <% for (let i = 1; i <= totalPages; i++) { %>
+                    <a href="/blog?page=<%= i %><%= searchQuery ? `&search=${searchQuery}` : '' %>" class="pagination-button <%= currentPage === i ? 'active' : '' %>"><%= i %></a>
+                <% } %>
+                
+                <% if (currentPage < totalPages) { %>
+                    <a href="/blog?page=<%= currentPage + 1 %><%= searchQuery ? `&search=${searchQuery}` : '' %>" class="pagination-button next">Следваща</a>
+                <% } %>
+            </div>
+        <% } %>
+    </main>
+
+    <!-- Create Blog Post Modal - Only for admin users -->
+    <% if (user && user.isAdmin) { %>
+    <div id="createPostModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Създаване на нова статия</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="createPostForm">
+                    <div class="form-group">
+                        <label for="createTitle">Заглавие</label>
+                        <input type="text" id="createTitle" name="title" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="createContent">Съдържание</label>
+                        <textarea id="createContent" name="content"></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="admin-button secondary close-modal-btn">Отказ</button>
+                        <button type="submit" class="admin-button primary">Създай</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Blog Post Modal - Only for admin users -->
+    <div id="editPostModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Редактиране на статия</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="editPostForm">
+                    <input type="hidden" id="editPostId">
+                    <div class="form-group">
+                        <label for="editTitle">Заглавие</label>
+                        <input type="text" id="editTitle" name="title" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editContent">Съдържание</label>
+                        <textarea id="editContent" name="content"></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="admin-button secondary close-modal-btn">Отказ</button>
+                        <button type="submit" class="admin-button primary">Запази промените</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <% } %>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="/fintrack-header-logo.svg" alt="Logo">
+            </div>
+            <div class="footer-menu">
+                <nav>
+                    <ul>
+                        <li><a href="/home">Начало</a></li>
+                        <li><a href="/blog">Блог</a></li>
+                        <li><a href="/contact">Контакти</a></li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="footer-social-media">
+                <a href="#">Facebook</a>
+                <a href="#">Instagram</a>
+                <a href="#">Twitter/X</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/blog/blog-script.js"></script>
+</body>
+</html>

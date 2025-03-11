@@ -64,6 +64,17 @@ app.get("/register", (req, res) => {
     res.render("register");
 });
 
+// Blog Routes
+app.use("/blog", require("./routes/blog.routes.js"));
+
+// Admin middleware - make sure this is defined before admin routes
+function isAdmin(req, res, next) {
+    if (!req.session.user || !req.session.user.isAdmin) {
+        return res.status(403).redirect('/login');
+    }
+    next();
+}
+
 // Register POST route
 app.post("/api/auth/register", async (req, res) => {
     const { username, email, password } = req.body;
@@ -106,6 +117,7 @@ app.post("/login", async (req, res) => {
             id: user[0].id, 
             email: user[0].email, 
             username: user[0].username,
+            isAdmin: user[0].isAdmin === 1  // Add this line
         };
 
         if (remember) {
@@ -140,6 +152,8 @@ app.use("/api/prices", require("./routes/investment-prices.routes.js"));
 app.use("/api/prices", require("./routes/price.routes.js"));
 app.use("/api/investments", require("./routes/investments.routes.js"));
 app.use("/api/portfolio", require("./routes/portfolio.routes.js"));
+app.use("/blog", require("./routes/blog.routes.js"));
+app.use("/admin/blog", isAdmin, require("./routes/blog.routes.js"));
 
 // 404 Handler - Catch-all for unmatched routes
 app.use((req, res, next) => {
@@ -150,7 +164,10 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).render('error', { 
-        message: process.env.NODE_ENV === 'production' ? 'Something went wrong!' : err.message 
+        error: {
+            message: process.env.NODE_ENV === 'production' ? 'Something went wrong!' : err.message 
+        },
+        user: req.session.user || null
     });
 });
 

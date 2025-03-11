@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= post.title %> - FinTrack</title>
+    <link rel="stylesheet" href="/home/header-design.css">
+    <link rel="stylesheet" href="/home/home-design.css">
+    <link rel="stylesheet" href="/blog/blog-design.css">
+</head>
+<body>
+    
+    <%- include('partials/header') %>
+
+    <main class="blog-post-container">
+        <article class="blog-post">
+            <div class="blog-post-header">
+                <h1 class="blog-post-title"><%= post.title %></h1>
+                <div class="blog-post-meta">
+                    <span class="blog-author">От: <%= post.author %></span>
+                    <span class="blog-date"><%= new Date(post.created_at).toLocaleDateString('bg-BG', { year: 'numeric', month: 'long', day: 'numeric' }) %></span>
+                    <% if (post.updated_at && post.updated_at !== post.created_at) { %>
+                        <span class="blog-updated">(Обновена: <%= new Date(post.updated_at).toLocaleDateString('bg-BG', { year: 'numeric', month: 'long', day: 'numeric' }) %>)</span>
+                    <% } %>
+                </div>
+            </div>
+
+            <div class="blog-post-content">
+                <%- post.content %> <!-- Using <%- instead of <%= to render HTML content -->
+            </div>
+
+            <% if (user && user.role === 'admin') { %>
+                <div class="admin-controls">
+                    <a href="/admin/blog/edit/<%= post.id %>" class="admin-button edit">Редактирай</a>
+                    <button class="admin-button delete" data-post-id="<%= post.id %>">Изтрий</button>
+                </div>
+            <% } %>
+        </article>
+
+        <div class="blog-navigation">
+            <% if (prevPost) { %>
+                <a href="/blog/<%= prevPost.id %>" class="nav-link prev">
+                    <img src="/design/left-arrow.svg" alt="Previous" class="arrow-icon">
+                    <span>Предишна статия</span>
+                </a>
+            <% } %>
+
+            <a href="/blog" class="nav-link back">
+                <span>Към всички статии</span>
+            </a>
+
+            <% if (nextPost) { %>
+                <a href="/blog/<%= nextPost.id %>" class="nav-link next">
+                    <span>Следваща статия</span>
+                    <img src="/design/right-arrow.svg" alt="Next" class="arrow-icon">
+                </a>
+            <% } %>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="/fintrack-header-logo.svg" alt="Logo">
+            </div>
+            <div class="footer-menu">
+                <nav>
+                    <ul>
+                        <li><a href="/home">Начало</a></li>
+                        <li><a href="/blog">Блог</a></li>
+                        <li><a href="/contact">Контакти</a></li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="footer-social-media">
+                <a href="#">Facebook</a>
+                <a href="#">Instagram</a>
+                <a href="#">Twitter/X</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Confirmation dialog for blog post deletion
+        document.addEventListener('DOMContentLoaded', function() {
+            const deleteBtn = document.querySelector('.admin-button.delete');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', function() {
+                    const postId = this.getAttribute('data-post-id');
+                    if (confirm('Сигурни ли сте, че искате да изтриете тази статия?')) {
+                        // Send delete request
+                        fetch(`/admin/blog/delete/${postId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            credentials: 'same-origin'
+                        })
+                        .then(response => {
+                            if (response.ok) {
+                                window.location.href = '/blog';
+                            } else {
+                                alert('Грешка при изтриването на статията.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Възникна грешка при обработката на заявката.');
+                        });
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
