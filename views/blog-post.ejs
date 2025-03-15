@@ -26,10 +26,14 @@
             </div>
 
             <div class="blog-post-content">
-                <%- post.content %> <!-- Using <%- instead of <%= to render HTML content -->
+                <% try { %>
+                    <%- post.content %>
+                <% } catch(e) { %>
+                    <p>Error displaying content: <%= e.message %></p>
+                <% } %>
             </div>
 
-            <% if (user && user.role === 'admin') { %>
+            <% if (user && user.isAdmin) { %>
                 <div class="admin-controls">
                     <a href="/admin/blog/edit/<%= post.id %>" class="admin-button edit">Редактирай</a>
                     <button class="admin-button delete" data-post-id="<%= post.id %>">Изтрий</button>

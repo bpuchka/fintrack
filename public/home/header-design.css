@@ -12,6 +12,7 @@ header{
     padding: 0 1%;
     position: fixed;
     top: 0;
+    z-index: 1000;
 }
 
 .left-side-header {
@@ -29,7 +30,7 @@ header{
 .menu-container {
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Added to distribute space */
+    justify-content: space-around; /* Added to distribute space */
     flex: 1; /* Takes up remaining space */
     margin: 0 4rem; /* Add margin for spacing from logo and profile */
 }
@@ -73,53 +74,71 @@ header .button{
 
 
 /* Logged user css */
+/* Dropdown improvements */
 .dropdown {
     position: relative;
     display: inline-block;
 }
 
-/* Add styles for the investment dropdown arrow */
 .dropdown > a {
     display: flex;
     align-items: center;
-    gap: 0.5rem; /* Adds space between text and arrow */
+    gap: 0.5rem;
 }
 
 .dropdown > a img {
-    width: 16px; /* Fixed width instead of percentage */
+    width: 12px; /* Smaller arrow */
     height: auto;
-    margin-top: 2px; /* Slight adjustment to align with text */
+    transition: transform 0.3s ease;
+}
+
+.dropdown:hover > a img {
+    transform: rotate(180deg); /* Rotate arrow on hover */
 }
 
 .dropdown-content {
     display: none;
     position: absolute;
+    top: calc(100% + 10px); /* Position below with gap */
+    left: 50%;
+    transform: translateX(-50%); /* Center the dropdown */
     background-color: #2c2c2c;
-    min-width: 200px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    min-width: 220px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
     z-index: 1;
-    border-radius: 5px;
+    border-radius: 8px;
     border: 1px solid #444;
-}
-
-.dropdown-content a {
-    color: #f5f5f5;
-    padding: 12px 16px;
-    text-decoration: none;
-    display: block;
-    font-size: calc(var(--base-font) * 0.9);
-}
-
-.dropdown-content a:hover {
-    background-color: #3c3c3c;
+    overflow: hidden; /* Keep inner items from breaking border radius */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform: translateY(10px) translateX(-50%);
 }
 
 .dropdown:hover .dropdown-content {
     display: block;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) translateX(-50%);
 }
 
-.profile-dropdown {
-    margin-left: 20px;
+.dropdown-content a {
+    color: #f5f5f5;
+    padding: 12px 20px;
+    text-decoration: none;
+    display: block;
+    font-size: 1rem;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    border-bottom: 1px solid #444;
+}
+
+.dropdown-content a:last-child {
+    border-bottom: none;
+}
+
+.dropdown-content a:hover {
+    background-color: #3c3c3c;
+    color: #6dc0e0;
 }
 
 .profile-btn {
@@ -137,31 +156,42 @@ header .button{
     min-width: fit-content; /* Prevent squishing */
 }
 
-.login-register-section{
-    display: flex;
-    gap: 4rem;
-    padding-left: 20%;
-}
-
 .button, button:hover {
     text-decoration: none;
     color: #1e1e1e;
 }
 .login-btn, .register-btn {
     text-decoration: none;
-    border-radius: 5px;
+    border-radius: 8px; /* Slightly more rounded */
     text-align: center;
     display: inline-block;
+    padding: 0.7rem 1.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
 }
 
-.login-btn{
-    background-color: #ffffff;
+.login-btn {
+    background-color: transparent;
     color: #6dc0e0 !important;
+    border: 2px solid #6dc0e0;
 }
 
-.register-btn{
+.register-btn {
     color: #f5f5f5 !important;
-    background-color: #6dc0e0
+    background-color: #6dc0e0;
+}
+
+.login-btn:hover {
+    background-color: rgba(109, 192, 224, 0.1);
+    transform: translateY(-2px);
+}
+
+.register-btn:hover {
+    background-color: #5ba8c7;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 @media (max-width: 1024px) {
@@ -170,101 +200,170 @@ header .button{
 
 @media (max-width: 768px) {
     header {
-        padding: 0 1rem;
+        padding: 0.75rem 1rem;
+        justify-content: space-around;
     }
 
+    .left-side-header {
+        gap: 0rem;
+        justify-content: center;
+    }
+    
     .logo img {
-        margin: 0rem; /* Adjust margin for smaller screens */
-        margin-top: 0.2rem; /* Adjust margin for smaller screens */
+        margin:auto;
     }
 
     .menu-icon {
-        display: block !important;  /* Show menu icon */
-        margin-left: -3rem;
+        display: block !important;
+        margin-left: 0;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 5px;
+        transition: background-color 0.3s ease;
     }
-
-    .dropdown:not(.active) .dropdown-content {
-        display: none;
+    
+    .menu-icon:hover {
+        background-color: rgba(255, 255, 255, 0.1);
     }
-
-    .dropdown.active .dropdown-content {
-        display: block;
+    
+    .menu-icon img {
+        width: 30px;
+        height: 30px;
     }
+    
     .menu-container {
-        display: none; /* Hidden by default */
+        display: none;
         position: absolute;
         top: 100%;
         left: 0;
         width: 100%;
-        background-color: #2c2c2c;
+        background-color: #232323; /* Slightly darker than header */
         margin: 0;
-        padding: 1rem 0;
+        padding: 0;
         flex-direction: column;
         z-index: 100;
-    }
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+        max-height: calc(100vh - 70px); /* Limit height and add scroll */
 
+    }
+    
     .menu-container.active {
         display: flex;
+        animation: slideDown 0.3s ease forwards;
     }
-
+    
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Mobile navigation styling */
     header nav ul {
         flex-direction: column;
         width: 100%;
         gap: 0;
     }
-
+    
     header nav ul li {
         width: 100%;
+        border-bottom: 1px solid #444;
     }
-
+    
+    header nav ul li:last-child {
+        border-bottom: none;
+    }
+    
     header nav ul li a {
-        padding: 1rem 1rem;
+        padding: 1rem 1.5rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
         width: 100%;
+        font-size: 1.1rem;
     }
-
+    
+    header nav ul li a:after {
+        display: none; /* Remove hover underline effect on mobile */
+    }
+    
     /* Mobile dropdown styles */
     .dropdown-content {
-        display: none;
+        transform: translate(0%) !important;        
         position: static;
-        width: 100%;
+        width: 80%;
+        opacity: 1;
+        display: none;
+        transform: none;
         box-shadow: none;
         border: none;
+        border-radius: 0;
         background-color: #3c3c3c;
+        padding: 0;
+        margin: auto;
+        animation: slideDown 0.3s ease forwards;
     }
-
+    
+    .dropdown.active .dropdown-content {
+        display: block;
+    }
+    
     .dropdown-content a {
-        padding-left: 3rem !important; /* Indent dropdown items */
+        padding: 1rem 1.5rem 1rem 3rem; /* Indent dropdown items */
     }
-
-    /* Adjustments for right-side header elements on mobile */
-    .right-side-header, .profile-dropdown, .login-register-section {
+    
+    /* Mobile buttons and profile */
+    .right-side-header {
         width: 100%;
-        margin: 0;
+        margin-top: 1rem;
+        padding: 0.5rem 1rem 1rem;
+        justify-content: center;
+        gap: 0.5rem;
     }
+    
+    .login-register-section {
+        width: 50%;
+        padding: 0;
+        gap: 0.5rem;
+        flex-direction: column;
+    }
+    
+    .register-btn, .login-btn {
+        width: 100%;
+        text-align: center;
+        padding: 0.8rem;
+    }
+    
     .profile-dropdown {
         width: 100%;
         margin: 0;
     }
-
+    
     .profile-btn {
-        padding: 1rem 2rem;
+        padding: 1rem 1.5rem;
         width: 100%;
         display: flex;
-        justify-content: space-between;
+        justify-content: space-around;
     }
+}
 
+@media (max-width: 480px) {
+    header {
+        padding: 0 0.8rem;
+    }
+    
+    .logo img {
+        height: 3rem;
+    }
+    
     .login-register-section {
-        width: 100%;
-        padding: 0 2rem;
-        gap: 1rem;
+        flex-direction: column;
+        gap: 0.8rem;
     }
-
-    .register-btn, .login-btn {
+    
+    .login-btn, .register-btn {
         width: 100%;
-        text-align: center;
         padding: 0.8rem;
     }
 }

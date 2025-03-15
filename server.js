@@ -147,13 +147,16 @@ app.get("/portfolio", requireAuth, (req, res) => {
 });
 
 // API Routes
+const blogRoutes = require("./routes/blog.routes.js");
+
 app.use("/api/auth", require("./routes/auth.routes.js"));
 app.use("/api/prices", require("./routes/investment-prices.routes.js"));
 app.use("/api/prices", require("./routes/price.routes.js"));
 app.use("/api/investments", require("./routes/investments.routes.js"));
 app.use("/api/portfolio", require("./routes/portfolio.routes.js"));
-app.use("/blog", require("./routes/blog.routes.js"));
-app.use("/admin/blog", isAdmin, require("./routes/blog.routes.js"));
+app.use("/blog", blogRoutes);
+app.use("/admin/blog", isAdmin, blogRoutes);
+app.use("/api/blog", require("./routes/blog.api.routes.js"));
 
 // 404 Handler - Catch-all for unmatched routes
 app.use((req, res, next) => {
