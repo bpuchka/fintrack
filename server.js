@@ -64,6 +64,10 @@ app.get("/register", (req, res) => {
     res.render("register");
 });
 
+app.get("/portfolio/history", requireAuth, (req, res) => {
+    res.render("portfolio-history", { user: req.session.user });
+});
+
 // Blog Routes
 app.use("/blog", require("./routes/blog.routes.js"));
 
@@ -157,6 +161,7 @@ app.use("/api/portfolio", require("./routes/portfolio.routes.js"));
 app.use("/blog", blogRoutes);
 app.use("/admin/blog", isAdmin, blogRoutes);
 app.use("/api/blog", require("./routes/blog.api.routes.js"));
+app.use("/api/portfolio", require("./routes/portfolio.routes.js"));
 
 // 404 Handler - Catch-all for unmatched routes
 app.use((req, res, next) => {

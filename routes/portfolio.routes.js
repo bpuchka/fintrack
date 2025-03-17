@@ -268,4 +268,326 @@ function getDisplayType(type) {
     return typeMap[type] || type;
 }
 
+/**
+ * Route for the portfolio history page
+ */
+router.get("/history", requireAuth, async (req, res) => {
+    try {
+        res.render("portfolio-history", { user: req.session.user });
+    } catch (error) {
+        console.error("Error rendering portfolio history:", error);
+        res.status(500).render("error", { 
+            error: { message: "Error loading portfolio history" },
+            user: req.session.user
+        });
+    }
+});
+
+/**
+ * API endpoint to get portfolio history data
+ */
+router.get("/history/data", requireAuth, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        
+        // Get all investments for the user
+        const [investments] = await pool.query(
+            `SELECT * FROM user_investments WHERE user_id = ? ORDER BY purchase_date DESC`, 
+            [userId]
+        );
+        
+        // Get all historical price data
+        const [priceHistory] = await pool.query(`
+            SELECT * FROM investment_prices 
+            ORDER BY timestamp ASC
+        `);
+        
+        // Create a price lookup structure
+        const priceMap = {};
+        priceHistory.forEach(price => {
+            if (!priceMap[price.symbol]) {
+                priceMap[price.symbol] = [];
+            }
+            priceMap[price.symbol].push({
+                timestamp: price.timestamp,
+                price: parseFloat(price.price)
+            });
+        });
+        
+        // Define default exchange rates (fallback)
+        const currencyRates = {
+            'BGN': 1,
+            'USD': 1.79,
+            'EUR': 1.96,
+            'GBP': 2.30
+        };
+        
+        // Process investments with performance data
+        const processedInvestments = investments.map(investment => {
+            // Format date for display
+            const purchaseDate = new Date(investment.purchase_date);
+            
+            // Calculate current value based on investment type
+            let currentValue = 0;
+            let profitPercentage = 0;
+            let initialInvestment = 0;
+            
+            if (investment.investment_type === 'bank') {
+                // For bank deposits, calculate interest
+                const monthsHeld = monthsBetween(purchaseDate, new Date());
+                let interestMultiplier = 1;
+                
+                // Apply interest based on type
+                const interestRate = parseFloat(investment.interest_rate || 0);
+                switch(investment.interest_type || 'yearly') {
+                    case 'daily':
+                        interestMultiplier = 1 + ((interestRate / 100) * (monthsHeld * 30) / 365);
+                        break;
+                    case 'monthly_1':
+                        interestMultiplier = 1 + ((interestRate / 100) * monthsHeld / 12);
+                        break;
+                    case 'monthly_3':
+                        interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 3) / 4);
+                        break;
+                    case 'monthly_6':
+                        interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 6) / 2);
+                        break;
+                    case 'yearly':
+                        interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 12));
+                        break;
+                }
+                
+                initialInvestment = parseFloat(investment.quantity);
+                currentValue = initialInvestment * interestMultiplier;
+                profitPercentage = (interestMultiplier - 1) * 100;
+            } else {
+                // For other investments, use latest price or purchase price as fallback
+                const latestPrice = getLatestPrice(priceMap, investment.symbol) || parseFloat(investment.purchase_price);
+                
+                initialInvestment = parseFloat(investment.quantity) * parseFloat(investment.purchase_price);
+                currentValue = parseFloat(investment.quantity) * latestPrice;
+                
+                // Calculate profit percentage
+                if (initialInvestment > 0) {
+                    profitPercentage = ((currentValue / initialInvestment) - 1) * 100;
+                }
+            }
+            
+            return {
+                ...investment,
+                initial_investment: initialInvestment,
+                current_value: currentValue,
+                profit_percentage: profitPercentage
+            };
+        });
+        
+        // Generate chart data
+        const chartData = generateChartData(processedInvestments, priceMap);
+        
+        res.json({
+            success: true,
+            investments: processedInvestments,
+            chartData
+        });
+    } catch (error) {
+        console.error("Error fetching portfolio history data:", error);
+        res.status(500).json({ 
+            success: false, 
+            message: "Error fetching portfolio history data" 
+        });
+    }
+});
+
+/**
+ * Helper function to get the latest price for a symbol
+ */
+function getLatestPrice(priceMap, symbol) {
+    if (!priceMap[symbol] || priceMap[symbol].length === 0) {
+        return null;
+    }
+    
+    // Get the most recent price
+    const sortedPrices = [...priceMap[symbol]].sort((a, b) => 
+        new Date(b.timestamp) - new Date(a.timestamp)
+    );
+    
+    return sortedPrices[0].price;
+}
+
+/**
+ * Helper function to calculate months between two dates
+ */
+function monthsBetween(date1, date2) {
+    const months = (date2.getFullYear() - date1.getFullYear()) * 12;
+    return months + date2.getMonth() - date1.getMonth();
+}
+
+/**
+ * Generate chart data from investments
+ */
+function generateChartData(investments, priceMap) {
+    // Define time spans for the chart (e.g., monthly for the past year)
+    const now = new Date();
+    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    
+    // Generate monthly data points
+    const monthlyLabels = [];
+    const monthlyData = {
+        bank: [],
+        crypto: [],
+        stock: [],
+        metal: []
+    };
+    
+    // Add the initial month
+    let currentDate = new Date(oneYearAgo);
+    while (currentDate <= now) {
+        // Format the month for display
+        const monthLabel = currentDate.toLocaleDateString('bg-BG', { 
+            year: 'numeric', 
+            month: 'short'
+        });
+        
+        monthlyLabels.push(monthLabel);
+        
+        // Initialize values for each asset type
+        monthlyData.bank.push(0);
+        monthlyData.crypto.push(0);
+        monthlyData.stock.push(0);
+        monthlyData.metal.push(0);
+        
+        // Move to next month
+        currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    }
+    
+    // Calculate value for each investment at each time point
+    investments.forEach(investment => {
+        const purchaseDate = new Date(investment.purchase_date);
+        
+        // Skip investments purchased after our chart's end date
+        if (purchaseDate > now) return;
+        
+        // Find the starting index for this investment
+        let startIndex = 0;
+        while (startIndex < monthlyLabels.length) {
+            const monthDate = getDateFromMonthLabel(monthlyLabels[startIndex]);
+            if (purchaseDate <= monthDate) break;
+            startIndex++;
+        }
+        
+        // If the investment was purchased before our chart's start date, adjust
+        if (startIndex >= monthlyLabels.length) return;
+        
+        // Calculate the value at each point
+        for (let i = startIndex; i < monthlyLabels.length; i++) {
+            const pointDate = getDateFromMonthLabel(monthlyLabels[i]);
+            let valueAtPoint = 0;
+            
+            if (investment.investment_type === 'bank') {
+                // Calculate bank deposit value with interest
+                const monthsHeld = monthsBetween(purchaseDate, pointDate);
+                let interestMultiplier = 1;
+                
+                const interestRate = parseFloat(investment.interest_rate || 0);
+                switch(investment.interest_type || 'yearly') {
+                    case 'daily':
+                        interestMultiplier = 1 + ((interestRate / 100) * (monthsHeld * 30) / 365);
+                        break;
+                    case 'monthly_1':
+                        interestMultiplier = 1 + ((interestRate / 100) * monthsHeld / 12);
+                        break;
+                    case 'monthly_3':
+                        interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 3) / 4);
+                        break;
+                    case 'monthly_6':
+                        interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 6) / 2);
+                        break;
+                    case 'yearly':
+                        interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 12));
+                        break;
+                }
+                
+                valueAtPoint = parseFloat(investment.quantity) * interestMultiplier;
+            } else {
+                // For other assets, find the closest price to this date
+                const priceAtPoint = getPriceAtDate(priceMap, investment.symbol, pointDate) || 
+                                    parseFloat(investment.purchase_price);
+                
+                valueAtPoint = parseFloat(investment.quantity) * priceAtPoint;
+            }
+            
+            // Add to the appropriate asset type
+            monthlyData[investment.investment_type][i] += valueAtPoint;
+        }
+    });
+    
+    return {
+        labels: monthlyLabels,
+        bank: monthlyData.bank,
+        crypto: monthlyData.crypto,
+        stock: monthlyData.stock,
+        metal: monthlyData.metal
+    };
+}
+
+/**
+ * Helper function to get a date from a month label
+ */
+function getDateFromMonthLabel(monthLabel) {
+    // Parse the label format (e.g., "янв. 2023")
+    const parts = monthLabel.split(' ');
+    const month = getMonthNumber(parts[0]);
+    const year = parseInt(parts[1]);
+    
+    return new Date(year, month, 1);
+}
+
+/**
+ * Helper function to get month number from Bulgarian short name
+ */
+function getMonthNumber(monthShort) {
+    const monthMap = {
+        'яну': 0, 'фев': 1, 'мар': 2, 'апр': 3, 'май': 4, 'юни': 5,
+        'юли': 6, 'авг': 7, 'сеп': 8, 'окт': 9, 'ное': 10, 'дек': 11
+    };
+    
+    // Remove any dots and convert to lowercase
+    const cleanMonth = monthShort.replace('.', '').toLowerCase();
+    
+    // Find the matching month
+    for (const key in monthMap) {
+        if (cleanMonth.startsWith(key)) {
+            return monthMap[key];
+        }
+    }
+    
+    // Default to January if not found
+    return 0;
+}
+
+/**
+ * Get the price closest to a specific date
+ */
+function getPriceAtDate(priceMap, symbol, targetDate) {
+    if (!priceMap[symbol] || priceMap[symbol].length === 0) {
+        return null;
+    }
+    
+    // Find the price closest to the target date
+    let closestPrice = null;
+    let minTimeDiff = Infinity;
+    
+    for (const pricePoint of priceMap[symbol]) {
+        const priceDate = new Date(pricePoint.timestamp);
+        const timeDiff = Math.abs(priceDate - targetDate);
+        
+        if (timeDiff < minTimeDiff) {
+            minTimeDiff = timeDiff;
+            closestPrice = pricePoint.price;
+        }
+    }
+    
+    return closestPrice;
+}
+
 module.exports = router;

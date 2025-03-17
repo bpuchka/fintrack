@@ -54,7 +54,7 @@ header nav ul {
     justify-content: space-between; /* Changed from center to space-between */
     align-items: center;
     list-style: none;
-    gap: 20px;
+    gap: 1rem;
     margin: 0;
     padding: 0;
     max-width: 400px; /* Limit the width of navigation items */
@@ -96,6 +96,18 @@ header .button{
     transform: rotate(180deg); /* Rotate arrow on hover */
 }
 
+/* Create a hover bridge - an invisible extension that maintains the hover state */
+.dropdown::after {
+    content: '';
+    position: absolute;
+    height: 20px;  /* Height of the bridge */
+    width: 100%;
+    left: 0;
+    bottom: -20px;
+    background-color: transparent;
+    z-index: 10;
+}
+
 .dropdown-content {
     display: none;
     position: absolute;
@@ -111,8 +123,24 @@ header .button{
     overflow: hidden; /* Keep inner items from breaking border radius */
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transition: 
+            opacity 0.3s ease, 
+            transform 0.3s ease,
+            visibility 0s linear 0.3s; /* Delay visibility */
     transform: translateY(10px) translateX(-50%);
+}
+
+.dropdown:hover .dropdown-content {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s; /* No delay when showing */
+}
+
+/* Make sure the dropdown content is positioned properly */
+.dropdown-content {
+    position: absolute;
+    top: calc(100% + 5px); /* Adjust this value as needed */
+    /* Keep other positioning properties */
 }
 
 .dropdown:hover .dropdown-content {
@@ -154,13 +182,14 @@ header .button{
     display: flex;
     justify-content: flex-end; /* Align to the right */
     min-width: fit-content; /* Prevent squishing */
+    margin: 0 5% 0 5%;
 }
 
 .button, button:hover {
     text-decoration: none;
     color: #1e1e1e;
 }
-.login-btn, .register-btn {
+.login-btn-header, .register-btn-header {
     text-decoration: none;
     border-radius: 8px; /* Slightly more rounded */
     text-align: center;
@@ -172,33 +201,31 @@ header .button{
     border: 2px solid transparent;
 }
 
-.login-btn {
+.login-btn-header {
     background-color: transparent;
     color: #6dc0e0 !important;
     border: 2px solid #6dc0e0;
 }
 
-.register-btn {
+.register-btn-header {
     color: #f5f5f5 !important;
     background-color: #6dc0e0;
 }
 
-.login-btn:hover {
+.login-btn-header:hover {
     background-color: rgba(109, 192, 224, 0.1);
     transform: translateY(-2px);
 }
 
-.register-btn:hover {
+.register-btn-header:hover {
     background-color: #5ba8c7;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-@media (max-width: 1024px) {
-    header .register-btn{display: none;}
-}
 
-@media (max-width: 768px) {
+
+@media (max-width: 1024px) {
     header {
         padding: 0.75rem 1rem;
         justify-content: space-around;
@@ -207,10 +234,6 @@ header .button{
     .left-side-header {
         gap: 0rem;
         justify-content: center;
-    }
-    
-    .logo img {
-        margin:auto;
     }
 
     .menu-icon {
@@ -247,6 +270,14 @@ header .button{
         box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
         max-height: calc(100vh - 70px); /* Limit height and add scroll */
 
+    }
+
+    .dropdown::after {
+        display: none; /* Remove the hover bridge on mobile */
+    }
+    
+    .dropdown-content {
+        transition: none; /* No transitions on mobile */
     }
     
     .menu-container.active {
@@ -317,6 +348,7 @@ header .button{
     .right-side-header {
         width: 100%;
         margin-top: 1rem;
+        margin: 1rem, 3rem, 0, 3rem ;
         padding: 0.5rem 1rem 1rem;
         justify-content: center;
         gap: 0.5rem;
@@ -329,7 +361,7 @@ header .button{
         flex-direction: column;
     }
     
-    .register-btn, .login-btn {
+    .register-btn-header, .login-btn-header {
         width: 100%;
         text-align: center;
         padding: 0.8rem;
@@ -362,7 +394,7 @@ header .button{
         gap: 0.8rem;
     }
     
-    .login-btn, .register-btn {
+    .login-btn-header, .register-btn-header {
         width: 100%;
         padding: 0.8rem;
     }

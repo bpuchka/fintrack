@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>История на портфолиото - FinTrack</title>
+    <link rel="stylesheet" href="/home/header-design.css">
+    <link rel="stylesheet" href="/home/home-design.css">
+    <link rel="stylesheet" href="/portfolio/portfolio-design.css">
+    <link rel="stylesheet" href="/portfolio/portfolio-history.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    
+    <%- include('partials/header') %>
+
+    <main class="history-container">
+        <div class="history-header">
+            <h1>История на <a style="color: #6dc0e0;">портфолиото</a></h1>
+            <p class="last-updated">Последно обновено: <span id="last-updated-date">28.02.2025</span></p>
+        </div>
+
+        <div class="history-filters">
+            <div class="filter-group">
+                <label for="timeRangeFilter">Период:</label>
+                <select id="timeRangeFilter">
+                    <option value="all" selected>Всички</option>
+                    <option value="30days">Последните 30 дни</option>
+                    <option value="90days">Последните 90 дни</option>
+                    <option value="1year">Последната година</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="typeFilter">Тип инвестиция:</label>
+                <select id="typeFilter">
+                    <option value="all" selected>Всички</option>
+                    <option value="bank">Банков влог</option>
+                    <option value="crypto">Крипто</option>
+                    <option value="stock">Акции</option>
+                    <option value="metal">Метали</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="sortFilter">Подредба:</label>
+                <select id="sortFilter">
+                    <option value="date-desc" selected>Най-нови първо</option>
+                    <option value="date-asc">Най-стари първо</option>
+                    <option value="profit-desc">Най-голяма печалба</option>
+                    <option value="profit-asc">Най-голяма загуба</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="timeline-loading">
+            <div class="loading-spinner"></div>
+            <p>Зареждане на история...</p>
+        </div>
+        
+        <div class="history-timeline" id="history-timeline">
+            <!-- This will be populated with JavaScript -->
+        </div>
+
+        <div class="timeline-navigation">
+            <button id="loadMore" class="action-button secondary">Зареди още</button>
+        </div>
+
+        <div class="no-investments" style="display: none;">
+            <div class="no-investments-message">
+                <img src="/fintrack-only-logo.svg" alt="FinTrack" class="no-investments-icon">
+                <h3>Все още нямате инвестиции</h3>
+                <p>Добавете първата си инвестиция, за да започнете да следите историята на портфолиото си</p>
+                <a href="/portfolio" class="action-button">Към портфолиото</a>
+            </div>
+        </div>
+
+        <div class="history-overview">
+            <div class="history-chart-container">
+                <h2>Стойност на портфолиото през времето</h2>
+                <div class="chart-wrapper">
+                    <canvas id="portfolio-history-chart"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #6dc0e0;"></div>
+                        <div class="legend-label">Банков влог</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #8e44ad;"></div>
+                        <div class="legend-label">Крипто</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #27ae60;"></div>
+                        <div class="legend-label">Акции</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #f39c12;"></div>
+                        <div class="legend-label">Метали</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="/fintrack-header-logo.svg" alt="Logo">
+            </div>
+            <div class="footer-menu">
+                <nav>
+                    <ul>
+                        <li><a href="/home">Начало</a></li>
+                        <li><a href="/blog">Блог</a></li>
+                        <li><a href="/contact">Контакти</a></li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="footer-social-media">
+                <a href="#">Facebook</a>
+                <a href="#">Instagram</a>
+                <a href="#">Twitter/X</a>
+            </div>
+        </div>
+    </footer>
+    <script src="/portfolio/portfolio-history.js"></script>
+</body>
+</html>
