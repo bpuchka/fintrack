@@ -10,12 +10,20 @@ document.addEventListener('DOMContentLoaded', function() {
     let hasMoreItems = true;
     let historicalData = [];
     let filteredData = [];
+    let currentInvestmentId = null; // Global variable to store the current investment ID
     
     // Filter and sorting selectors
     const timeRangeFilter = document.getElementById('timeRangeFilter');
     const typeFilter = document.getElementById('typeFilter');
     const sortFilter = document.getElementById('sortFilter');
     const loadMoreBtn = document.getElementById('loadMore');
+    
+    // Modal elements
+    const editModal = document.getElementById('editInvestmentModal');
+    const closeModalBtns = document.querySelectorAll('.close-modal, .close-modal-btn');
+    const cancelBtn = document.getElementById('cancelEdit');
+    const deleteBtn = document.getElementById('deleteInvestment');
+    const editForm = document.getElementById('editInvestmentForm');
     
     // Initialize the portfolio history chart
     const ctx = document.getElementById('portfolio-history-chart').getContext('2d');
@@ -119,8 +127,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Fetch portfolio history data
-    fetchPortfolioHistory();
+    // Setup modal close/open functionality
+    function closeModal() {
+        if (editModal) {
+            editModal.style.display = 'none';
+            document.body.style.overflow = 'auto'; // Re-enable scrolling
+        }
+    }
+    
+    // Add event listeners for modal close actions
+    if (closeModalBtns) {
+        closeModalBtns.forEach(btn => {
+            btn.addEventListener('click', closeModal);
+        });
+    }
+    
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeModal);
+    }
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        if (event.target === editModal) {
+            closeModal();
+        }
+    });
+    
+    // Setup form submission
+    if (editForm) {
+        editForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveInvestmentChanges();
+        });
+    }
+    
+    // Setup delete functionality
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            if (confirm('Сигурни ли сте, че искате да изтриете тази инвестиция?')) {
+                deleteInvestment(currentInvestmentId);
+            }
+        });
+    }
 
     // Event listeners for filters
     timeRangeFilter.addEventListener('change', applyFilters);
@@ -128,10 +176,15 @@ document.addEventListener('DOMContentLoaded', function() {
     sortFilter.addEventListener('change', applyFilters);
     loadMoreBtn.addEventListener('click', loadMoreInvestments);
 
-    // Fetch portfolio history data from API
+    // Fetch portfolio history data on page load
+    fetchPortfolioHistory();
+    
+    // Fetch portfolio history data
     async function fetchPortfolioHistory() {
         try {
-            // Show loading spinner if it exists
+            console.log("Зареждане на история на портфолиото...");
+            
+            // Show loading spinner
             const loadingElement = document.querySelector('.timeline-loading');
             if (loadingElement) {
                 loadingElement.style.display = 'flex';
@@ -139,16 +192,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const response = await fetch('/api/portfolio/history/data');
             if (!response.ok) {
-                throw new Error('Failed to fetch portfolio history');
+                throw new Error('Неуспешно зареждане на история на портфолиото');
             }
             
             const data = await response.json();
             
-            // Debug data received from API
-            console.log('Portfolio history data received:', data);
+            console.log('Получени данни за историята на портфолиото:', data);
             
             if (!data.success) {
-                throw new Error(data.message || 'Error loading portfolio history');
+                throw new Error(data.message || 'Грешка при зареждане на история на портфолиото');
             }
             
             // Check if any investments exist
@@ -161,7 +213,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Store the data and apply initial filters
+            // Store the data globally for access by other functions
+            window.portfolioData = data;
+            
+            // Set historical data
             historicalData = data.investments;
             
             // Populate the chart with historical data
@@ -171,15 +226,15 @@ document.addEventListener('DOMContentLoaded', function() {
             applyFilters();
             
         } catch (error) {
-            console.error('Error fetching portfolio history:', error);
+            console.error('Грешка при зареждане на история на портфолиото:', error);
             
-            // Hide loading spinner if it exists
+            // Hide loading spinner
             const loadingElement = document.querySelector('.timeline-loading');
             if (loadingElement) {
                 loadingElement.style.display = 'none';
             }
             
-            // Show no investments message and hide other elements
+            // Show no investments message
             const noInvestmentsElement = document.querySelector('.no-investments');
             if (noInvestmentsElement) {
                 noInvestmentsElement.style.display = 'block';
@@ -316,6 +371,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Create the timeline item
             const timelineItem = document.createElement('div');
             timelineItem.className = 'timeline-item';
+            timelineItem.dataset.investmentId = investment.id;
+            timelineItem.dataset.investmentType = investment.investment_type;
             timelineItem.innerHTML = `
                 <div class="timeline-header">
                     <h3 class="timeline-title">
@@ -372,14 +429,210 @@ document.addEventListener('DOMContentLoaded', function() {
                         </span>
                     </div>
                 </div>
+                
+                <div class="timeline-actions">
+                    <button class="edit-investment-btn" data-investment-id="${investment.id}">Редактирай</button>
+                    <button class="delete-investment-btn" data-investment-id="${investment.id}">Изтрий</button>
+                </div>
             `;
             
             timelineContainer.appendChild(timelineItem);
         }
         
+        // Add event listeners to the newly created edit buttons
+        const editButtons = document.querySelectorAll('.edit-investment-btn');
+        editButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const investmentId = this.getAttribute('data-investment-id');
+                openEditModal(investmentId);
+            });
+        });
+        
+        // Add event listeners to the newly created delete buttons
+        const deleteButtons = document.querySelectorAll('.delete-investment-btn');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const investmentId = this.getAttribute('data-investment-id');
+                if (confirm('Сигурни ли сте, че искате да изтриете тази инвестиция?')) {
+                    deleteInvestment(investmentId);
+                }
+            });
+        });
+        
         // Update "Load More" button visibility
         hasMoreItems = endIndex < filteredData.length;
         loadMoreBtn.style.display = hasMoreItems ? 'block' : 'none';
+    }
+
+    // Function to open the edit modal with investment data
+    function openEditModal(investmentId) {
+        console.log("Отваряне на модално прозорче за редактиране на инвестиция ID:", investmentId);
+        
+        const investment = findInvestmentById(investmentId);
+        if (!investment) {
+            console.error('Инвестицията не е намерена:', investmentId);
+            alert('Инвестицията не е намерена. Моля, опреснете страницата и опитайте отново.');
+            return;
+        }
+        
+        console.log("Намерени данни за инвестицията:", investment);
+        
+        // Store the current investment ID
+        currentInvestmentId = investmentId;
+        
+        // Set form title in Bulgarian
+        const modalTitle = document.querySelector('#editInvestmentModal .modal-header h2');
+        if (modalTitle) {
+            modalTitle.textContent = 'Редактиране на инвестиция';
+        }
+        
+        // Translate submit button
+        const submitButton = document.querySelector('#editInvestmentForm .submit-button');
+        if (submitButton) {
+            submitButton.textContent = 'Запази промените';
+        }
+        
+        // Translate cancel button
+        const cancelButton = document.querySelector('#editInvestmentForm .cancel-button');
+        if (cancelButton) {
+            cancelButton.textContent = 'Отказ';
+        }
+        
+        // Translate delete button
+        const deleteButton = document.querySelector('#editInvestmentForm .delete-button');
+        if (deleteButton) {
+            deleteButton.textContent = 'Изтрий инвестицията';
+        }
+        
+        // Translate labels
+        const labels = {
+            'editInvestmentType': 'Тип инвестиция',
+            'editInvestmentSymbol': 'Символ',
+            'editInvestmentAmount': 'Количество',
+            'editInvestmentCurrency': 'Валута',
+            'editInvestmentPrice': 'Покупна цена',
+            'editDepositCurrency': 'Валута',
+            'editDepositAmount': 'Сума',
+            'editInterestRate': 'Лихвен процент (%)',
+            'editInterestType': 'Тип на лихвата',
+            'editInvestmentDate': 'Дата на покупка',
+            'editInvestmentNotes': 'Бележки (незадължително)'
+        };
+        
+        // Update all labels
+        for (const [id, text] of Object.entries(labels)) {
+            const label = document.querySelector(`label[for="${id}"]`);
+            if (label) {
+                label.textContent = text;
+            }
+        }
+        
+        // Populate the form fields
+        document.getElementById('editInvestmentType').value = investment.investment_type;
+        
+        // Get symbols for the selected investment type
+        populateSymbols(investment.investment_type);
+        
+        // Set symbol after populating options
+        setTimeout(() => {
+            const symbolSelect = document.getElementById('editInvestmentSymbol');
+            if (symbolSelect) {
+                // Create option if it doesn't exist
+                if (!Array.from(symbolSelect.options).some(opt => opt.value === investment.symbol)) {
+                    const option = document.createElement('option');
+                    option.value = investment.symbol;
+                    option.textContent = investment.symbol;
+                    symbolSelect.appendChild(option);
+                }
+                symbolSelect.value = investment.symbol;
+            }
+        }, 100);
+        
+        // Toggle required attributes and visibility based on investment type
+        if (investment.investment_type === 'bank') {
+            // Show bank fields, hide standard fields
+            document.getElementById('editStandardFields').style.display = 'none';
+            document.getElementById('editBankDepositFields').style.display = 'block';
+            
+            // Disable required on standard fields
+            toggleRequiredAttributes('editStandardFields', false);
+            toggleRequiredAttributes('editBankDepositFields', true);
+            
+            // Set bank-specific values
+            document.getElementById('editDepositCurrency').value = investment.currency || 'BGN';
+            document.getElementById('editDepositAmount').value = investment.quantity;
+            document.getElementById('editInterestRate').value = investment.interest_rate || 0;
+            document.getElementById('editInterestType').value = investment.interest_type || 'yearly';
+        } else {
+            // Show standard fields, hide bank fields
+            document.getElementById('editStandardFields').style.display = 'block';
+            document.getElementById('editBankDepositFields').style.display = 'none';
+            
+            // Disable required on bank fields
+            toggleRequiredAttributes('editStandardFields', true);
+            toggleRequiredAttributes('editBankDepositFields', false);
+            
+            // Set standard values
+            document.getElementById('editInvestmentAmount').value = investment.quantity;
+            document.getElementById('editInvestmentCurrency').value = investment.currency || 'BGN';
+            document.getElementById('editInvestmentPrice').value = investment.purchase_price;
+        }
+        
+        // Set date
+        const purchaseDate = new Date(investment.purchase_date);
+        // Format date as YYYY-MM-DD for input field
+        const formattedDate = purchaseDate.toISOString().split('T')[0];
+        document.getElementById('editInvestmentDate').value = formattedDate;
+        
+        // Set notes
+        document.getElementById('editInvestmentNotes').value = investment.notes || '';
+        
+        // Open the modal
+        editModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+    
+    // Helper function to toggle required attributes on form fields
+    function toggleRequiredAttributes(containerId, isRequired) {
+        const container = document.getElementById(containerId);
+        if (container) {
+            const requiredFields = container.querySelectorAll('input[required], select[required]');
+            requiredFields.forEach(field => {
+                if (isRequired) {
+                    field.setAttribute('required', 'required');
+                } else {
+                    field.removeAttribute('required');
+                }
+            });
+        }
+    }
+    
+    // Populate symbols dropdown based on investment type
+    function populateSymbols(type) {
+        const symbolSelect = document.getElementById('editInvestmentSymbol');
+        symbolSelect.innerHTML = '<option value="" disabled>Изберете символ</option>';
+        
+        // Define available symbols for each type
+        const symbols = {
+            'crypto': ['BTC', 'ETH', 'USDT', 'XRP', 'SOL'],
+            'stock': ['AAPL', 'NVDA', 'TSLA'],
+            'metal': ['GLD', 'SLV']
+        };
+        
+        // Get the symbols for the selected type
+        const typeSymbols = symbols[type] || [];
+        
+        // Add options to the select
+        typeSymbols.forEach(symbol => {
+            const option = document.createElement('option');
+            option.value = symbol;
+            option.textContent = symbol;
+            symbolSelect.appendChild(option);
+        });
+        
+        // Update dropdown labels
+        const symbolLabel = document.querySelector('label[for="editInvestmentSymbol"]');
+        if (symbolLabel) symbolLabel.textContent = 'Символ';
     }
 
     // Load more investments button handler
@@ -388,10 +641,157 @@ document.addEventListener('DOMContentLoaded', function() {
         renderTimelineItems(false);
     }
 
+    // Function to save edited investment
+    function saveInvestmentChanges() {
+        if (!currentInvestmentId) {
+            console.error("Не е зададено ID на инвестиция за редактиране");
+            alert('Грешка: Не е зададено ID на инвестиция за редактиране');
+            return;
+        }
+        
+        console.log("Запазване на промени за инвестиция ID:", currentInvestmentId);
+        
+        const investmentType = document.getElementById('editInvestmentType').value;
+        
+        try {
+            // Prepare data based on investment type
+            let data = {
+                investment_type: investmentType,
+                purchase_date: document.getElementById('editInvestmentDate').value,
+                notes: document.getElementById('editInvestmentNotes').value || null
+            };
+            
+            if (investmentType === 'bank') {
+                // Validate bank deposit fields
+                const depositAmount = document.getElementById('editDepositAmount').value;
+                const interestRate = document.getElementById('editInterestRate').value;
+                
+                if (!depositAmount || isNaN(parseFloat(depositAmount)) || parseFloat(depositAmount) <= 0) {
+                    alert('Моля, въведете валидна сума на депозита');
+                    return;
+                }
+                
+                if (interestRate === '' || isNaN(parseFloat(interestRate))) {
+                    alert('Моля, въведете валиден лихвен процент');
+                    return;
+                }
+                
+                data = {
+                    ...data,
+                    currency: document.getElementById('editDepositCurrency').value,
+                    quantity: parseFloat(depositAmount),
+                    interest_rate: parseFloat(interestRate),
+                    interest_type: document.getElementById('editInterestType').value,
+                    purchase_price: 1 // Default for bank deposits
+                };
+            } else {
+                // Validate standard fields
+                const symbol = document.getElementById('editInvestmentSymbol').value;
+                const amount = document.getElementById('editInvestmentAmount').value;
+                const price = document.getElementById('editInvestmentPrice').value;
+                
+                if (!symbol) {
+                    alert('Моля, изберете символ');
+                    return;
+                }
+                
+                if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+                    alert('Моля, въведете валидно количество');
+                    return;
+                }
+                
+                if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
+                    alert('Моля, въведете валидна цена');
+                    return;
+                }
+                
+                data = {
+                    ...data,
+                    symbol: symbol,
+                    quantity: parseFloat(amount),
+                    purchase_price: parseFloat(price),
+                    currency: document.getElementById('editInvestmentCurrency').value
+                };
+            }
+            
+            console.log("Данни за изпращане:", data);
+            
+            // Send update request
+            fetch('/api/investments/' + currentInvestmentId, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data),
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                console.log("Статус на отговора:", response.status);
+                return response.json().then(data => {
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Неуспешно обновяване на инвестицията');
+                    }
+                    return data;
+                });
+            })
+            .then(data => {
+                console.log("Успешно обновяване:", data);
+                alert('Инвестицията беше успешно обновена!');
+                closeModal();
+                // Reload data to show changes
+                fetchPortfolioHistory();
+            })
+            .catch(error => {
+                console.error('Грешка при обновяване на инвестицията:', error);
+                alert('Грешка при обновяване на инвестицията: ' + error.message);
+            });
+        } catch (error) {
+            console.error('Грешка при обработка на данните за инвестицията:', error);
+            alert('Грешка при обработка на данните: ' + error.message);
+        }
+    }
+
+    // Function to delete investment
+    function deleteInvestment(investmentId) {
+        if (!investmentId) {
+            console.error("Не е зададено ID на инвестиция за изтриване");
+            return;
+        }
+        
+        console.log("Изтриване на инвестиция ID:", investmentId);
+        
+        fetch('/api/investments/' + investmentId, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            return response.json().then(data => {
+                if (!response.ok) {
+                    throw new Error(data.message || 'Неуспешно изтриване на инвестицията');
+                }
+                return data;
+            });
+        })
+        .then(data => {
+            console.log("Успешно изтриване:", data);
+            alert('Инвестицията беше успешно изтрита!');
+            closeModal();
+            // Reload data to show changes
+            fetchPortfolioHistory();
+        })
+        .catch(error => {
+            console.error('Грешка при изтриване на инвестицията:', error);
+            alert('Грешка при изтриване на инвестицията: ' + error.message);
+        });
+    }
+
     // Update the history chart with data
     function updateHistoryChart(chartData) {
         // Debug chart data
-        console.log('Chart data received for updating:', chartData);
+        console.log('Получени данни за графиката:', chartData);
         
         // If no data provided or empty data, use default values
         if (!chartData || 
@@ -400,7 +800,7 @@ document.addEventListener('DOMContentLoaded', function() {
             !chartData.crypto ||
             !chartData.stock ||
             !chartData.metal) {
-            console.warn('Invalid or missing chart data, using empty arrays');
+            console.warn('Невалидни или липсващи данни за графиката, използване на празни масиви');
             chartData = {
                 labels: [],
                 bank: [],
@@ -423,7 +823,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // If we have time points but no values, generate realistic demo data
         if (hasData && !hasValues) {
-            console.warn('No chart data values found. Generating sample data.');
+            console.warn('Не са намерени стойности за графиката. Генериране на примерни данни.');
             
             // Create sample data based on the investments we have
             if (historicalData && historicalData.length > 0) {
@@ -445,15 +845,6 @@ document.addEventListener('DOMContentLoaded', function() {
         historyChart.data.datasets[1].data = chartData.crypto;
         historyChart.data.datasets[2].data = chartData.stock;
         historyChart.data.datasets[3].data = chartData.metal;
-        
-        // Debug final chart configuration
-        console.log('Final chart configuration:', {
-            labels: historyChart.data.labels,
-            datasets: historyChart.data.datasets.map(ds => ({
-                label: ds.label,
-                dataPoints: ds.data.length > 0 ? `${ds.data[0]}...${ds.data[ds.data.length-1]}` : 'none'
-            }))
-        });
         
         // Update chart
         historyChart.update();
@@ -516,6 +907,31 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         return result;
+    }
+
+    // Helper function to find investment by ID
+    function findInvestmentById(id) {
+        // First try to find in the filtered data (current view)
+        if (filteredData.length > 0) {
+            const investment = filteredData.find(inv => inv.id == id);
+            if (investment) return investment;
+        }
+        
+        // Then try to find in the complete historical data
+        if (historicalData.length > 0) {
+            const investment = historicalData.find(inv => inv.id == id);
+            if (investment) return investment;
+        }
+        
+        // If not found in historicalData, try the global portfolioData
+        if (window.portfolioData && window.portfolioData.investments) {
+            const investment = window.portfolioData.investments.find(inv => inv.id == id);
+            if (investment) return investment;
+        }
+        
+        // If still not found, log an error and return null
+        console.error('Инвестицията не е намерена с ID:', id);
+        return null;
     }
 
     // Helper functions

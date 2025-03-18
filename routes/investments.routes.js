@@ -149,15 +149,15 @@ router.post("/", requireAuth, async (req, res) => {
     }
 });
 
-    // Helper function to calculate months between two dates
-    function monthsBetween(date1, date2) {
-        const months = (date2.getFullYear() - date1.getFullYear()) * 12;
-        return months + date2.getMonth() - date1.getMonth();
-    }
+// Helper function to calculate months between two dates
+function monthsBetween(date1, date2) {
+    const months = (date2.getFullYear() - date1.getFullYear()) * 12;
+    return months + date2.getMonth() - date1.getMonth();
+}
 
-    // Calculate portfolio summary with accurate percentage change
-    router.get("/summary", requireAuth, async (req, res) => {
-        try {
+// Calculate portfolio summary with accurate percentage change
+router.get("/summary", requireAuth, async (req, res) => {
+    try {
         const userId = req.session.user.id;
         
         // Get all user investments directly from the database
@@ -194,9 +194,9 @@ router.post("/", requireAuth, async (req, res) => {
         // Try to get up-to-date currency rates if available in the price data
         latestPrices.forEach(price => {
             if (price.asset_type === 'forex') {
-            if (price.symbol === 'USD') currencyRates['USD'] = price.price;
-            if (price.symbol === 'EUR') currencyRates['EUR'] = price.price;
-            if (price.symbol === 'GBP') currencyRates['GBP'] = price.price;
+                if (price.symbol === 'USD') currencyRates['USD'] = price.price;
+                if (price.symbol === 'EUR') currencyRates['EUR'] = price.price;
+                if (price.symbol === 'GBP') currencyRates['GBP'] = price.price;
             }
         });
         
@@ -208,10 +208,10 @@ router.post("/", requireAuth, async (req, res) => {
             profitPercentage: 0,
             monthlyProfit: 0,
             byType: {
-            bank: { initialAmount: 0, currentAmount: 0, percentage: 0 },
-            crypto: { initialAmount: 0, currentAmount: 0, percentage: 0 },
-            stock: { initialAmount: 0, currentAmount: 0, percentage: 0 },
-            metal: { initialAmount: 0, currentAmount: 0, percentage: 0 }
+                bank: { initialAmount: 0, currentAmount: 0, percentage: 0 },
+                crypto: { initialAmount: 0, currentAmount: 0, percentage: 0 },
+                stock: { initialAmount: 0, currentAmount: 0, percentage: 0 },
+                metal: { initialAmount: 0, currentAmount: 0, percentage: 0 }
             }
         };
         
@@ -233,38 +233,38 @@ router.post("/", requireAuth, async (req, res) => {
             let currentValueBGN = initialValueBGN; // Default if no better data
             
             if (investment.investment_type === 'bank') {
-            // For bank deposits, calculate interest
-            const monthsHeld = monthsBetween(new Date(investment.purchase_date), new Date());
-            let interestMultiplier = 1;
-            
-            // Apply interest based on type
-            switch(investment.interest_type || 'yearly') {
-                case 'daily':
-                interestMultiplier = 1 + ((interestRate / 100) * (monthsHeld * 30) / 365);
-                break;
-                case 'monthly_1':
-                interestMultiplier = 1 + ((interestRate / 100) * monthsHeld / 12);
-                break;
-                case 'monthly_3':
-                interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 3) / 4);
-                break;
-                case 'monthly_6':
-                interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 6) / 2);
-                break;
-                case 'yearly':
-                interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 12));
-                break;
-            }
-            
-            // Apply interest to value
-            currentValueBGN = quantity * interestMultiplier * currencyRate;
+                // For bank deposits, calculate interest
+                const monthsHeld = monthsBetween(new Date(investment.purchase_date), new Date());
+                let interestMultiplier = 1;
+                
+                // Apply interest based on type
+                switch(investment.interest_type || 'yearly') {
+                    case 'daily':
+                        interestMultiplier = 1 + ((interestRate / 100) * (monthsHeld * 30) / 365);
+                        break;
+                    case 'monthly_1':
+                        interestMultiplier = 1 + ((interestRate / 100) * monthsHeld / 12);
+                        break;
+                    case 'monthly_3':
+                        interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 3) / 4);
+                        break;
+                    case 'monthly_6':
+                        interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 6) / 2);
+                        break;
+                    case 'yearly':
+                        interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 12));
+                        break;
+                }
+                
+                // Apply interest to value
+                currentValueBGN = quantity * interestMultiplier * currencyRate;
             } else {
-            // For other investment types, use latest price data
-            if (priceMap[investment.symbol]) {
-                const currentPrice = parseFloat(priceMap[investment.symbol]);
-                const currentValueOrigCurrency = quantity * currentPrice;
-                currentValueBGN = currentValueOrigCurrency * currencyRate;
-            }
+                // For other investment types, use latest price data
+                if (priceMap[investment.symbol]) {
+                    const currentPrice = parseFloat(priceMap[investment.symbol]);
+                    const currentValueOrigCurrency = quantity * currentPrice;
+                    currentValueBGN = currentValueOrigCurrency * currencyRate;
+                }
             }
             
             // Update summary totals
@@ -273,17 +273,17 @@ router.post("/", requireAuth, async (req, res) => {
             
             // Update type-specific totals
             if (summary.byType[investment.investment_type]) {
-            summary.byType[investment.investment_type].initialAmount += initialValueBGN;
-            summary.byType[investment.investment_type].currentAmount += currentValueBGN;
+                summary.byType[investment.investment_type].initialAmount += initialValueBGN;
+                summary.byType[investment.investment_type].currentAmount += currentValueBGN;
             }
             
             // Return processed investment data
             return {
-            ...investment,
-            initialValueBGN,
-            currentValueBGN,
-            profit: currentValueBGN - initialValueBGN,
-            profitPercentage: initialValueBGN > 0 ? ((currentValueBGN / initialValueBGN) - 1) * 100 : 0
+                ...investment,
+                initialValueBGN,
+                currentValueBGN,
+                profit: currentValueBGN - initialValueBGN,
+                profitPercentage: initialValueBGN > 0 ? ((currentValueBGN / initialValueBGN) - 1) * 100 : 0
             };
         });
         
@@ -295,8 +295,8 @@ router.post("/", requireAuth, async (req, res) => {
         // Calculate distribution percentages by type
         if (summary.totalCurrentValue > 0) {
             for (const type in summary.byType) {
-            const typeData = summary.byType[type];
-            typeData.percentage = (typeData.currentAmount / summary.totalCurrentValue) * 100;
+                const typeData = summary.byType[type];
+                typeData.percentage = (typeData.currentAmount / summary.totalCurrentValue) * 100;
             }
         }
         
@@ -307,10 +307,10 @@ router.post("/", requireAuth, async (req, res) => {
             profitPercentage: summary.profitPercentage,
             monthlyProfit: summary.totalProfit / 3, // Simple estimation
             byType: {
-            bank: { amount: summary.byType.bank.currentAmount, percentage: summary.byType.bank.percentage },
-            crypto: { amount: summary.byType.crypto.currentAmount, percentage: summary.byType.crypto.percentage },
-            stock: { amount: summary.byType.stock.currentAmount, percentage: summary.byType.stock.percentage },
-            metal: { amount: summary.byType.metal.currentAmount, percentage: summary.byType.metal.percentage }
+                bank: { amount: summary.byType.bank.currentAmount, percentage: summary.byType.bank.percentage },
+                crypto: { amount: summary.byType.crypto.currentAmount, percentage: summary.byType.crypto.percentage },
+                stock: { amount: summary.byType.stock.currentAmount, percentage: summary.byType.stock.percentage },
+                metal: { amount: summary.byType.metal.currentAmount, percentage: summary.byType.metal.percentage }
             }
         };
         
@@ -319,10 +319,174 @@ router.post("/", requireAuth, async (req, res) => {
             summary: simplifiedSummary,
             investments: processedInvestments
         });
-        } catch (error) {
+    } catch (error) {
         console.error("Error calculating portfolio summary:", error);
         res.status(500).json({ success: false, message: "Error calculating portfolio data" });
+    }
+});
+
+// Update an existing investment
+router.put("/:id", requireAuth, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const investmentId = req.params.id;
+        
+        console.log("Update request received for investment ID:", investmentId);
+        console.log("Request body:", req.body);
+        
+        // First check if the investment belongs to the user
+        const [existing] = await pool.query(
+            `SELECT * FROM user_investments WHERE id = ? AND user_id = ?`, 
+            [investmentId, userId]
+        );
+        
+        if (existing.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Investment not found or you don't have permission to modify it" 
+            });
         }
-    });
+        
+        // Extract data from request
+        const { investment_type, symbol, quantity, purchase_price, currency, 
+                interest_rate, interest_type, purchase_date, notes } = req.body;
+        
+        // Validate data based on investment type
+        if (!investment_type) {
+            return res.status(422).json({ success: false, message: "Investment type is required" });
+        }
+        
+        if (!purchase_date) {
+            return res.status(422).json({ success: false, message: "Purchase date is required" });
+        }
+        
+        // Prepare update data
+        let updateData = {
+            purchase_date: purchase_date,
+            notes: notes || null
+        };
+        
+        // Add type-specific data
+        if (investment_type === 'bank') {
+            // Validate bank deposit data
+            if (!currency) {
+                return res.status(422).json({ success: false, message: "Currency is required" });
+            }
+            if (!quantity || isNaN(quantity) || quantity <= 0) {
+                return res.status(422).json({ success: false, message: "Invalid amount" });
+            }
+            if (!interest_rate || isNaN(interest_rate) || interest_rate < 0 || interest_rate > 100) {
+                return res.status(422).json({ success: false, message: "Invalid interest rate" });
+            }
+            
+            updateData = {
+                ...updateData,
+                quantity: quantity,
+                currency: currency,
+                interest_rate: interest_rate,
+                interest_type: interest_type
+            };
+        } else {
+            // Validate other investment types
+            if (!symbol) {
+                return res.status(422).json({ success: false, message: "Symbol is required" });
+            }
+            
+            let parsedQuantity = parseFloat(quantity);
+            if (!quantity || isNaN(parsedQuantity) || parsedQuantity <= 0) {
+                return res.status(422).json({ success: false, message: "Invalid quantity" });
+            }
+            
+            if (!purchase_price || isNaN(purchase_price) || purchase_price <= 0) {
+                return res.status(422).json({ success: false, message: "Invalid price" });
+            }
+            
+            updateData = {
+                ...updateData,
+                symbol: symbol,
+                quantity: parsedQuantity,
+                purchase_price: purchase_price,
+                currency: currency
+            };
+        }
+        
+        console.log("Update data prepared:", updateData);
+        
+        // Update the investment
+        const [result] = await pool.query(
+            "UPDATE user_investments SET ? WHERE id = ? AND user_id = ?", 
+            [updateData, investmentId, userId]
+        );
+        
+        console.log("Update result:", result);
+        
+        if (result.affectedRows === 1) {
+            res.json({ 
+                success: true, 
+                message: "Investment updated successfully"
+            });
+        } else {
+            res.status(500).json({ 
+                success: false, 
+                message: "Failed to update investment" 
+            });
+        }
+    } catch (error) {
+        console.error("Error updating investment:", error);
+        res.status(500).json({ 
+            success: false, 
+            message: "Error updating investment: " + error.message 
+        });
+    }
+});
+
+// Delete an investment
+router.delete("/:id", requireAuth, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const investmentId = req.params.id;
+        
+        console.log("Delete request received for investment ID:", investmentId);
+        
+        // First check if the investment belongs to the user
+        const [existing] = await pool.query(
+            `SELECT * FROM user_investments WHERE id = ? AND user_id = ?`, 
+            [investmentId, userId]
+        );
+        
+        if (existing.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Investment not found or you don't have permission to delete it" 
+            });
+        }
+        
+        // Delete the investment
+        const [result] = await pool.query(
+            "DELETE FROM user_investments WHERE id = ? AND user_id = ?", 
+            [investmentId, userId]
+        );
+        
+        console.log("Delete result:", result);
+        
+        if (result.affectedRows === 1) {
+            res.json({ 
+                success: true, 
+                message: "Investment deleted successfully"
+            });
+        } else {
+            res.status(500).json({ 
+                success: false, 
+                message: "Failed to delete investment" 
+            });
+        }
+    } catch (error) {
+        console.error("Error deleting investment:", error);
+        res.status(500).json({ 
+            success: false, 
+            message: "Error deleting investment: " + error.message 
+        });
+    }
+});
 
 module.exports = router;

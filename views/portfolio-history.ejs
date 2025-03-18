@@ -66,7 +66,7 @@
 
         <div class="no-investments" style="display: none;">
             <div class="no-investments-message">
-                <img src="/fintrack-only-logo.svg" alt="FinTrack" class="no-investments-icon">
+                <img src="/fintrack-header-logo.svg" alt="FinTrack" class="no-investments-icon">
                 <h3>Все още нямате инвестиции</h3>
                 <p>Добавете първата си инвестиция, за да започнете да следите историята на портфолиото си</p>
                 <a href="/portfolio" class="action-button">Към портфолиото</a>
@@ -122,6 +122,112 @@
             </div>
         </div>
     </footer>
+
+    <div id="editInvestmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Редактиране на инвестиция</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="editInvestmentForm">
+                    <div class="form-group">
+                        <label for="editInvestmentType">Тип инвестиция</label>
+                        <select id="editInvestmentType" name="editInvestmentType" disabled required>
+                            <option value="bank">Банков влог</option>
+                            <option value="crypto">Крипто</option>
+                            <option value="stock">Акции</option>
+                            <option value="metal">Метали</option>
+                        </select>
+                        <small class="form-note">Типа не може да бъде променен след създаване</small>
+                    </div>
+                    
+                    <!-- Standard fields for Crypto/Stocks/Metals -->
+                    <div id="editStandardFields">
+                        <div class="form-group">
+                            <label for="editInvestmentSymbol">Символ</label>
+                            <select id="editInvestmentSymbol" name="editInvestmentSymbol" required>
+                                <option value="" disabled selected>Изберете символ</option>
+                                <!-- Options will be populated dynamically based on investment type -->
+                            </select>
+                        </div>
+                    
+                        <div class="form-group">
+                            <label for="editInvestmentAmount">Количество</label>
+                            <input type="number" id="editInvestmentAmount" name="editInvestmentAmount" placeholder="0.00000000" step="0.00000001" min="0.00000001" required>
+                            <small class="form-note">Поддържа до 8 десетични знака</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="editInvestmentCurrency">Валута</label>
+                            <select id="editInvestmentCurrency" name="editInvestmentCurrency" required>
+                                <option value="BGN">Български лев (BGN)</option>
+                                <option value="USD">Щатски долар (USD)</option>
+                                <option value="EUR">Евро (EUR)</option>
+                                <option value="GBP">Британска лира (GBP)</option>
+                            </select>
+                        </div>
+                                            
+                        <div class="form-group">
+                            <label for="editInvestmentPrice">Покупна цена</label>
+                            <input type="number" id="editInvestmentPrice" name="editInvestmentPrice" placeholder="0.00" step="0.01" required>
+                        </div>
+                    </div>
+                    
+                    <!-- Bank deposit specific fields -->
+                    <div id="editBankDepositFields" style="display: none;">
+                        <div class="form-group">
+                            <label for="editDepositCurrency">Валута</label>
+                            <select id="editDepositCurrency" name="editDepositCurrency">
+                                <option value="BGN">Български лев (BGN)</option>
+                                <option value="USD">Щатски долар (USD)</option>
+                                <option value="EUR">Евро (EUR)</option>
+                                <option value="GBP">Британска лира (GBP)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="editDepositAmount">Сума</label>
+                            <input type="number" id="editDepositAmount" name="editDepositAmount" placeholder="0.00" step="0.01">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="editInterestRate">Лихвен процент (%)</label>
+                            <input type="number" id="editInterestRate" name="editInterestRate" placeholder="0.00" step="0.01">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="editInterestType">Тип на лихвата</label>
+                            <select id="editInterestType" name="editInterestType">
+                                <option value="daily">Дневна</option>
+                                <option value="monthly_1">Месечна (1 месец)</option>
+                                <option value="monthly_3">Месечна (3 месеца)</option>
+                                <option value="monthly_6">Месечна (6 месеца)</option>
+                                <option value="yearly">Годишна</option>
+                            </select>
+                        </div>
+                    </div>
+    
+                    <div class="form-group">
+                        <label for="editInvestmentDate">Дата на покупка</label>
+                        <input type="date" id="editInvestmentDate" name="editInvestmentDate" required>
+                    </div>
+    
+                    <div class="form-group">
+                        <label for="editInvestmentNotes">Бележки (незадължително)</label>
+                        <textarea id="editInvestmentNotes" name="editInvestmentNotes" placeholder="Допълнителна информация за вашата инвестиция"></textarea>
+                    </div>
+    
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button" id="cancelEdit">Отказ</button>
+                        <button type="submit" class="submit-button">Запази промените</button>
+                        <button type="button" class="delete-button" id="deleteInvestment">Изтрий инвестицията</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="/portfolio/portfolio-history.js"></script>
 </body>
 </html>
