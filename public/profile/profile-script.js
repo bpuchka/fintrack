@@ -234,7 +234,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const { username, email } = Object.fromEntries(formData.entries());
             
             // Send data to server
-            fetch("/api/profile/update-info", {
+            fetch("/profile/update-info", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -273,7 +273,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const { currentPassword, newPassword } = Object.fromEntries(formData.entries());
             
             // Send data to server
-            fetch("/api/profile/update-password", {
+            fetch("/profile/update-password", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -340,7 +340,7 @@ document.addEventListener("DOMContentLoaded", function() {
     
     // API functions
     function logoutFromAllDevices() {
-        fetch("/api/profile/logout-all", {
+        fetch("/profile/logout-all", {
             method: "POST",
             credentials: "same-origin"
         })
@@ -362,7 +362,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     function deleteAccount() {
-        fetch("/api/profile/delete-account", {
+        fetch("/profile/delete-account", {
             method: "DELETE",
             credentials: "same-origin"
         })
@@ -379,11 +379,9 @@ document.addEventListener("DOMContentLoaded", function() {
         })
         .catch(error => {
             console.error("Error:", error);
-            showNotification("Грешка", error.message, true);
+            Notify.error("Грешка", error.message);
         });
     }
-    
-    // No longer needed as we're using the global notification system
     
     // Initialize button states on page load
     updateButtonStates();

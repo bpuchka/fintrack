@@ -64,14 +64,6 @@ app.get("/register", (req, res) => {
     res.render("register");
 });
 
-app.get("/portfolio/history", requireAuth, (req, res) => {
-    res.render("portfolio-history", { user: req.session.user });
-});
-
-app.get("/investments/bank", requireAuth, (req, res) => {
-    res.render("bankinvestment", { user: req.session.user });
-});
-
 // Blog Routes
 app.use("/blog", require("./routes/blog.routes.js"));
 
@@ -152,6 +144,18 @@ app.get("/logout", (req, res) => {
 // Authenticated Route
 app.get("/portfolio", requireAuth, (req, res) => {
     res.render("portfolio", { user: req.session.user });
+});
+
+app.get("/portfolio/history", requireAuth, (req, res) => {
+    res.render("portfolio-history", { user: req.session.user });
+});
+
+app.get("/investments/bank", requireAuth, (req, res) => {
+    res.render("bankinvestment", { user: req.session.user });
+});
+
+app.get("/profile", requireAuth, (req, res) => {
+    res.render("profile", { user: req.session.user });
 });
 
 // API Routes

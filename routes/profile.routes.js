@@ -1,3 +1,4 @@
+// routes/profile.routes.js
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
@@ -26,14 +27,14 @@ router.post("/update-info", requireAuth, async (req, res) => {
         if (!username || username.length < 6) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Username must be at least 6 characters long" 
+                message: "Потребителското име трябва да е поне 6 символа" 
             });
         }
         
         if (!email || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Invalid email format" 
+                message: "Невалиден формат на имейл" 
             });
         }
         
@@ -46,7 +47,7 @@ router.post("/update-info", requireAuth, async (req, res) => {
         if (existingUsers.length > 0) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Email already in use by another account" 
+                message: "Този имейл вече се използва от друг потребител" 
             });
         }
         
@@ -59,7 +60,7 @@ router.post("/update-info", requireAuth, async (req, res) => {
         if (result.affectedRows === 0) {
             return res.status(404).json({ 
                 success: false, 
-                message: "User not found" 
+                message: "Потребителят не е намерен" 
             });
         }
         
@@ -69,13 +70,13 @@ router.post("/update-info", requireAuth, async (req, res) => {
         
         res.json({ 
             success: true, 
-            message: "Profile updated successfully" 
+            message: "Профилната информация беше обновена успешно" 
         });
     } catch (error) {
         console.error("Error updating profile:", error);
         res.status(500).json({ 
             success: false, 
-            message: "An error occurred while updating profile" 
+            message: "Възникна грешка при обновяване на профила" 
         });
     }
 });
@@ -90,7 +91,7 @@ router.post("/update-password", requireAuth, async (req, res) => {
         if (!newPassword || !currentPassword) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Current password and new password are required" 
+                message: "Текущата и новата парола са задължителни" 
             });
         }
         
@@ -99,7 +100,7 @@ router.post("/update-password", requireAuth, async (req, res) => {
         if (!passwordRegex.test(newPassword)) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Password must be 8-32 characters and include uppercase, lowercase, number, and special character" 
+                message: "Паролата трябва да е 8-32 символа и да включва главна буква, малка буква, цифра и специален символ" 
             });
         }
         
@@ -112,7 +113,7 @@ router.post("/update-password", requireAuth, async (req, res) => {
         if (users.length === 0) {
             return res.status(404).json({ 
                 success: false, 
-                message: "User not found" 
+                message: "Потребителят не е намерен" 
             });
         }
         
@@ -123,7 +124,7 @@ router.post("/update-password", requireAuth, async (req, res) => {
         if (!passwordMatch) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Current password is incorrect" 
+                message: "Текущата парола е грешна" 
             });
         }
         
@@ -140,19 +141,19 @@ router.post("/update-password", requireAuth, async (req, res) => {
         if (result.affectedRows === 0) {
             return res.status(500).json({ 
                 success: false, 
-                message: "Failed to update password" 
+                message: "Неуспешно обновяване на паролата" 
             });
         }
         
         res.json({ 
             success: true, 
-            message: "Password updated successfully" 
+            message: "Паролата беше сменена успешно" 
         });
     } catch (error) {
         console.error("Error updating password:", error);
         res.status(500).json({ 
             success: false, 
-            message: "An error occurred while updating password" 
+            message: "Възникна грешка при обновяване на паролата" 
         });
     }
 });
@@ -166,21 +167,21 @@ router.post("/logout-all", requireAuth, async (req, res) => {
                 console.error('Error destroying session:', err);
                 return res.status(500).json({ 
                     success: false, 
-                    message: "Error logging out" 
+                    message: "Грешка при излизане" 
                 });
             }
             
             res.clearCookie('connect.sid');
             res.json({ 
                 success: true, 
-                message: "Logged out from all devices successfully" 
+                message: "Успешно излизане от всички устройства" 
             });
         });
     } catch (error) {
         console.error("Error logging out:", error);
         res.status(500).json({ 
             success: false, 
-            message: "An error occurred while logging out" 
+            message: "Възникна грешка при излизане" 
         });
     }
 });
@@ -210,7 +211,7 @@ router.delete("/delete-account", requireAuth, async (req, res) => {
                 res.clearCookie('connect.sid');
                 res.json({ 
                     success: true, 
-                    message: "Account deleted successfully" 
+                    message: "Акаунтът беше изтрит успешно" 
                 });
             });
         } catch (error) {
@@ -225,7 +226,7 @@ router.delete("/delete-account", requireAuth, async (req, res) => {
         console.error("Error deleting account:", error);
         res.status(500).json({ 
             success: false, 
-            message: "An error occurred while deleting account" 
+            message: "Възникна грешка при изтриване на акаунта" 
         });
     }
 });
