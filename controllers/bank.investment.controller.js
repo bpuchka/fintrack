@@ -1,9 +1,9 @@
 // controllers/bank.investment.controller.js
 const BankInvestment = require("../models/bank.investment.model.js");
 
-// Create a new bank investment
 exports.createBankInvestment = async (req, res) => {
   try {
+    // Validate request
     if (!req.body) {
       return res.status(400).json({
         success: false,
@@ -11,7 +11,15 @@ exports.createBankInvestment = async (req, res) => {
       });
     }
 
-    // Parse amount as a floating point number
+    // Validate required fields
+    if (!req.body.amount || !req.body.interest_rate || !req.body.investment_date) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide amount, interest rate, and investment date!"
+      });
+    }
+
+    // Validate amount
     const amount = parseFloat(req.body.amount);
     if (isNaN(amount) || amount <= 0) {
       return res.status(400).json({
@@ -20,8 +28,8 @@ exports.createBankInvestment = async (req, res) => {
       });
     }
 
-    // Parse interest rate
-    const interestRate = parseFloat(req.body.interestRate);
+    // Validate interest rate
+    const interestRate = parseFloat(req.body.interest_rate);
     if (isNaN(interestRate) || interestRate < 0) {
       return res.status(400).json({
         success: false,
@@ -29,13 +37,13 @@ exports.createBankInvestment = async (req, res) => {
       });
     }
 
-    // Create a new bank investment object
+    // Create a new bank investment
     const bankInvestment = new BankInvestment({
       user_id: req.session.user.id,
       amount: amount,
       interest_rate: interestRate,
-      interest_type: req.body.interestType || 'yearly',
-      investment_date: req.body.investmentDate || new Date(),
+      interest_type: req.body.interest_type || 'yearly',
+      investment_date: req.body.investment_date,
       currency: req.body.currency || 'BGN',
       notes: req.body.notes
     });
@@ -44,10 +52,11 @@ exports.createBankInvestment = async (req, res) => {
     const data = await BankInvestment.create(bankInvestment);
     res.status(201).json({
       success: true,
-      message: "Bank investment was created successfully",
+      message: "Bank investment created successfully!",
       data: data
     });
   } catch (err) {
+    console.error("Error creating bank investment:", err);
     res.status(500).json({
       success: false,
       message: err.message || "Some error occurred while creating the bank investment."
@@ -55,32 +64,27 @@ exports.createBankInvestment = async (req, res) => {
   }
 };
 
-// Retrieve all bank investments for a user
 exports.findAllBankInvestments = async (req, res) => {
   try {
-    const userId = req.session.user.id;
-    const bankInvestments = await BankInvestment.findByUserId(userId);
+    const bankInvestments = await BankInvestment.findByUserId(req.session.user.id);
     
-    // Calculate current values with interest
-    const processedInvestments = bankInvestments.map(investment => {
-      const currentValue = BankInvestment.calculateCurrentValue(investment);
-      const initialAmount = parseFloat(investment.amount);
-      const profit = currentValue - initialAmount;
-      const profitPercentage = initialAmount > 0 ? ((currentValue / initialAmount) - 1) * 100 : 0;
-      
+    // Calculate current value with interest for each investment
+    const currentDate = new Date();
+    const enhancedInvestments = bankInvestments.map(investment => {
+      const currentValue = BankInvestment.calculateCurrentValue(investment, currentDate);
       return {
         ...investment,
-        currentValue,
-        profit,
-        profitPercentage
+        current_value: currentValue,
+        profit_percentage: ((currentValue / investment.amount - 1) * 100)
       };
     });
     
     res.json({
       success: true,
-      data: processedInvestments
+      data: enhancedInvestments
     });
   } catch (err) {
+    console.error("Error retrieving bank investments:", err);
     res.status(500).json({
       success: false,
       message: err.message || "Some error occurred while retrieving bank investments."
@@ -88,55 +92,48 @@ exports.findAllBankInvestments = async (req, res) => {
   }
 };
 
-// Find a single bank investment by ID
 exports.findBankInvestmentById = async (req, res) => {
   try {
-    const userId = req.session.user.id;
-    const investmentId = req.params.id;
+    const bankInvestment = await BankInvestment.findById(req.params.id);
     
-    const investment = await BankInvestment.findById(investmentId);
-    
-    // Check if investment belongs to user
-    if (investment.user_id !== userId) {
+    // Check if user is authorized to view this investment
+    if (bankInvestment.user_id !== req.session.user.id) {
       return res.status(403).json({
         success: false,
-        message: "You don't have permission to access this investment"
+        message: "You are not authorized to view this bank investment!"
       });
     }
     
     // Calculate current value with interest
-    const currentValue = BankInvestment.calculateCurrentValue(investment);
-    const initialAmount = parseFloat(investment.amount);
-    const profit = currentValue - initialAmount;
-    const profitPercentage = initialAmount > 0 ? ((currentValue / initialAmount) - 1) * 100 : 0;
+    const currentValue = BankInvestment.calculateCurrentValue(bankInvestment);
     
     res.json({
       success: true,
       data: {
-        ...investment,
-        currentValue,
-        profit,
-        profitPercentage
+        ...bankInvestment,
+        current_value: currentValue,
+        profit_percentage: ((currentValue / bankInvestment.amount - 1) * 100)
       }
     });
   } catch (err) {
     if (err.kind === "not_found") {
       res.status(404).json({
         success: false,
-        message: "Bank investment not found with ID " + req.params.id
+        message: `Not found bank investment with id ${req.params.id}.`
       });
     } else {
+      console.error("Error retrieving bank investment:", err);
       res.status(500).json({
         success: false,
-        message: "Error retrieving bank investment with ID " + req.params.id
+        message: err.message || "Error retrieving bank investment with id " + req.params.id
       });
     }
   }
 };
 
-// Update a bank investment
 exports.updateBankInvestment = async (req, res) => {
   try {
+    // Validate request
     if (!req.body) {
       return res.status(400).json({
         success: false,
@@ -144,19 +141,15 @@ exports.updateBankInvestment = async (req, res) => {
       });
     }
 
-    const userId = req.session.user.id;
-    const investmentId = req.params.id;
-    
-    // Check if investment exists and belongs to user
-    const existingInvestment = await BankInvestment.findById(investmentId);
-    if (existingInvestment.user_id !== userId) {
-      return res.status(403).json({
+    // Validate required fields
+    if (!req.body.amount || req.body.interest_rate === undefined || !req.body.investment_date) {
+      return res.status(400).json({
         success: false,
-        message: "You don't have permission to modify this investment"
+        message: "Please provide amount, interest rate, and investment date!"
       });
     }
-    
-    // Parse amount
+
+    // Validate amount
     const amount = parseFloat(req.body.amount);
     if (isNaN(amount) || amount <= 0) {
       return res.status(400).json({
@@ -164,79 +157,85 @@ exports.updateBankInvestment = async (req, res) => {
         message: "Amount must be a positive number!"
       });
     }
-    
-    // Parse interest rate
-    const interestRate = parseFloat(req.body.interestRate);
+
+    // Validate interest rate - ensure we're handling zero correctly
+    const interestRate = parseFloat(req.body.interest_rate);
     if (isNaN(interestRate) || interestRate < 0) {
       return res.status(400).json({
         success: false,
         message: "Interest rate must be a non-negative number!"
       });
     }
-    
-    // Create updated investment object
-    const bankInvestment = {
+
+    // First check if the bank investment exists and belongs to the user
+    const existingInvestment = await BankInvestment.findById(req.params.id);
+    if (existingInvestment.user_id !== req.session.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to update this bank investment!"
+      });
+    }
+
+    // Prepare investment data for update
+    const investment = {
       amount: amount,
       interest_rate: interestRate,
-      interest_type: req.body.interestType || existingInvestment.interest_type,
-      investment_date: req.body.investmentDate || existingInvestment.investment_date,
+      interest_type: req.body.interest_type || existingInvestment.interest_type,
+      investment_date: req.body.investment_date,
       currency: req.body.currency || existingInvestment.currency,
       notes: req.body.notes
     };
-    
-    const result = await BankInvestment.update(investmentId, bankInvestment);
-    
+
+    // Update the bank investment
+    const data = await BankInvestment.update(req.params.id, investment);
     res.json({
       success: true,
-      message: "Bank investment was updated successfully",
-      data: result
+      message: "Bank investment updated successfully!",
+      data: data
     });
   } catch (err) {
     if (err.kind === "not_found") {
       res.status(404).json({
         success: false,
-        message: "Bank investment not found with ID " + req.params.id
+        message: `Not found bank investment with id ${req.params.id}.`
       });
     } else {
+      console.error("Error updating bank investment:", err);
       res.status(500).json({
         success: false,
-        message: "Error updating bank investment with ID " + req.params.id
+        message: err.message || "Error updating bank investment with id " + req.params.id
       });
     }
   }
 };
 
-// Delete a bank investment
 exports.deleteBankInvestment = async (req, res) => {
   try {
-    const userId = req.session.user.id;
-    const investmentId = req.params.id;
-    
-    // Check if investment exists and belongs to user
-    const existingInvestment = await BankInvestment.findById(investmentId);
-    if (existingInvestment.user_id !== userId) {
+    // First check if the bank investment exists and belongs to the user
+    const existingInvestment = await BankInvestment.findById(req.params.id);
+    if (existingInvestment.user_id !== req.session.user.id) {
       return res.status(403).json({
         success: false,
-        message: "You don't have permission to delete this investment"
+        message: "You are not authorized to delete this bank investment!"
       });
     }
-    
-    await BankInvestment.remove(investmentId);
-    
+
+    await BankInvestment.remove(req.params.id);
     res.json({
       success: true,
-      message: "Bank investment was deleted successfully"
+      message: "Bank investment deleted successfully!"
     });
   } catch (err) {
     if (err.kind === "not_found") {
       res.status(404).json({
         success: false,
-        message: "Bank investment not found with ID " + req.params.id
+        message: `Not found bank investment with id ${req.params.id}.`
       });
     } else {
+      console.error("Error deleting bank investment:", err);
       res.status(500).json({
         success: false,
-        message: "Could not delete bank investment with ID " + req.params.id
+        message: err.message || "Could not delete bank investment with id " + req.params.id
       });
     }
   }

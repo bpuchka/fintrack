@@ -471,10 +471,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add additional processing based on investment type
             const type = investmentData.investmentType;
             
+            // Determine the right API endpoint
+            let apiEndpoint = '/api/investments';
+            
             // Construct the API payload differently based on type
             let payload;
             
             if (type === 'bank') {
+                // For bank investments, use a different endpoint
+                apiEndpoint = '/api/bank-investments';
+                
                 // Validate interest rate once more before submission
                 const rate = parseFloat(investmentData.interestRate);
                 if (rate < 0 || rate > 100) {
@@ -484,13 +490,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
+                // Format bank investment data in the way the API expects
                 payload = {
-                    type: 'bank',
-                    currency: investmentData.depositCurrency,
                     amount: parseFloat(investmentData.depositAmount),
-                    interestRate: parseFloat(investmentData.interestRate),
-                    interestType: investmentData.interestType,
-                    date: investmentData.investmentDate,
+                    interest_rate: parseFloat(investmentData.interestRate),
+                    interest_type: investmentData.interestType,
+                    investment_date: investmentData.investmentDate,
+                    currency: investmentData.depositCurrency,
                     notes: investmentData.investmentNotes || ''
                 };
             } else {
@@ -502,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     symbol: investmentData.investmentSymbol,
                     amount: quantity,
                     price: parseFloat(investmentData.investmentPrice),
-                    currency: investmentData.investmentCurrency || 'BGN', // Use the new currency field
+                    currency: investmentData.investmentCurrency || 'BGN',
                     date: investmentData.investmentDate,
                     notes: investmentData.investmentNotes || ''
                 };
@@ -510,9 +516,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Log payload for debugging
             console.log('Payload being sent:', payload);
+            console.log('API Endpoint:', apiEndpoint);
             
             // Send data to server
-            fetch('/api/investments', {
+            fetch(apiEndpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

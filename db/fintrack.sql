@@ -5,6 +5,9 @@ SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 
 -- -----------------------------------------------------
+-- Schema mydb
+-- -----------------------------------------------------
+-- -----------------------------------------------------
 -- Schema fintrack
 -- -----------------------------------------------------
 
@@ -37,9 +40,10 @@ DEFAULT CHARACTER SET = utf8mb3;
 CREATE TABLE IF NOT EXISTS `fintrack`.`bank_investment` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `user_id` INT NOT NULL,
-  `initial_capital` DECIMAL(15,2) NOT NULL,
+  `amount` DECIMAL(15,2) NOT NULL,
   `interest_rate` DECIMAL(5,2) NOT NULL,
-  `interest_period` VARCHAR(50) NOT NULL,
+  `interest_type` ENUM('daily', 'monthly_1', 'monthly_3', 'monthly_6', 'yearly') NULL DEFAULT NULL,
+  `notes` TEXT NULL DEFAULT NULL,
   `investment_date` DATE NOT NULL,
   `currency` VARCHAR(3) NOT NULL,
   PRIMARY KEY (`id`),
@@ -50,7 +54,7 @@ CREATE TABLE IF NOT EXISTS `fintrack`.`bank_investment` (
     REFERENCES `fintrack`.`users` (`id`)
     ON DELETE CASCADE)
 ENGINE = InnoDB
-AUTO_INCREMENT = 3
+AUTO_INCREMENT = 4
 DEFAULT CHARACTER SET = utf8mb3;
 
 
@@ -98,11 +102,9 @@ CREATE TABLE IF NOT EXISTS `fintrack`.`user_investments` (
   `user_id` INT NOT NULL,
   `investment_type` ENUM('bank', 'crypto', 'stock', 'metal') NOT NULL,
   `symbol` VARCHAR(10) NOT NULL COMMENT 'Asset symbol (e.g., BTC, AAPL) or bank reference',
-  `quantity` DECIMAL(10,2) NOT NULL COMMENT 'Amount of units or deposit amount for banks',
+  `quantity` DECIMAL(14,4) NOT NULL,
   `purchase_price` DECIMAL(10,2) NOT NULL COMMENT 'Price per unit or set to 1 for bank deposits',
   `currency` ENUM('BGN', 'USD', 'EUR', 'GBP') NULL DEFAULT NULL COMMENT 'Currency for bank deposits',
-  `interest_rate` DECIMAL(5,2) NULL DEFAULT NULL COMMENT 'Interest rate percentage for bank deposits',
-  `interest_type` ENUM('daily', 'monthly_1', 'monthly_3', 'monthly_6', 'yearly') NULL DEFAULT NULL COMMENT 'Interest calculation period for bank deposits',
   `purchase_date` DATETIME NOT NULL,
   `notes` TEXT NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -112,10 +114,23 @@ CREATE TABLE IF NOT EXISTS `fintrack`.`user_investments` (
     FOREIGN KEY (`user_id`)
     REFERENCES `fintrack`.`users` (`id`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 5
+AUTO_INCREMENT = 10
 DEFAULT CHARACTER SET = utf8mb3
 COMMENT = 'Stores all user investment types including cryptocurrencies, stocks, metals, and bank deposits';
 
+USE `fintrack` ;
+
+-- -----------------------------------------------------
+-- Placeholder table for view `fintrack`.`all_investments`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `fintrack`.`all_investments` (`id` INT, `user_id` INT, `investment_type` INT, `symbol` INT, `quantity` INT, `purchase_price` INT, `currency` INT, `interest_rate` INT, `interest_type` INT, `purchase_date` INT, `notes` INT);
+
+-- -----------------------------------------------------
+-- View `fintrack`.`all_investments`
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `fintrack`.`all_investments`;
+USE `fintrack`;
+CREATE  OR REPLACE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `fintrack`.`all_investments` AS select `fintrack`.`bank_investment`.`id` AS `id`,`fintrack`.`bank_investment`.`user_id` AS `user_id`,'bank' AS `investment_type`,concat('BANK_',`fintrack`.`bank_investment`.`currency`) AS `symbol`,`fintrack`.`bank_investment`.`amount` AS `quantity`,1 AS `purchase_price`,`fintrack`.`bank_investment`.`currency` AS `currency`,`fintrack`.`bank_investment`.`interest_rate` AS `interest_rate`,`fintrack`.`bank_investment`.`interest_type` AS `interest_type`,`fintrack`.`bank_investment`.`investment_date` AS `purchase_date`,`fintrack`.`bank_investment`.`notes` AS `notes` from `fintrack`.`bank_investment` union all select `fintrack`.`user_investments`.`id` AS `id`,`fintrack`.`user_investments`.`user_id` AS `user_id`,`fintrack`.`user_investments`.`investment_type` AS `investment_type`,`fintrack`.`user_investments`.`symbol` AS `symbol`,`fintrack`.`user_investments`.`quantity` AS `quantity`,`fintrack`.`user_investments`.`purchase_price` AS `purchase_price`,`fintrack`.`user_investments`.`currency` AS `currency`,`fintrack`.`user_investments`.`interest_rate` AS `interest_rate`,`fintrack`.`user_investments`.`interest_type` AS `interest_type`,`fintrack`.`user_investments`.`purchase_date` AS `purchase_date`,`fintrack`.`user_investments`.`notes` AS `notes` from `fintrack`.`user_investments` where (`fintrack`.`user_investments`.`investment_type` <> 'bank');
 
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;

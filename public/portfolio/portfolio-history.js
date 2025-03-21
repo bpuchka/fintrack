@@ -24,6 +24,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelBtn = document.getElementById('cancelEdit');
     const deleteBtn = document.getElementById('deleteInvestment');
     const editForm = document.getElementById('editInvestmentForm');
+
+    // Simple notification system
+    const Notify = {
+        success: function(title, message) {
+            alert(title + ": " + message);
+        },
+        error: function(title, message) {
+            alert(title + ": " + message);
+        },
+        warning: function(title, message) {
+            alert(title + ": " + message);
+        },
+        info: function(title, message) {
+            alert(title + ": " + message);
+        }
+    };
     
     // Initialize the portfolio history chart
     const ctx = document.getElementById('portfolio-history-chart').getContext('2d');
@@ -695,7 +711,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderTimelineItems(false);
     }
 
-    // Function to save edited investment
+    // Improved saveInvestmentChanges function
     function saveInvestmentChanges() {
         if (!currentInvestmentId) {
             console.error("Не е зададено ID на инвестиция за редактиране");
@@ -703,46 +719,68 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        console.log("Запазване на промени за инвестиция ID:", currentInvestmentId);
+        // Find the original investment to determine its type
+        const currentInvestment = findInvestmentById(currentInvestmentId);
+        if (!currentInvestment) {
+            console.error("Инвестицията не е намерена:", currentInvestmentId);
+            Notify.error("Грешка", "Инвестицията не е намерена");
+            return;
+        }
         
-        const investmentType = document.getElementById('editInvestmentType').value;
+        // Get the investment type from the original investment
+        const investmentType = currentInvestment.investment_type;
+        console.log("Editing investment type:", investmentType);
         
         try {
-            // Prepare data based on investment type
-            let data = {
-                investment_type: investmentType,
-                purchase_date: document.getElementById('editInvestmentDate').value,
-                notes: document.getElementById('editInvestmentNotes').value || null
-            };
+            // Choose the appropriate endpoint based on the investment type
+            const apiEndpoint = investmentType === 'bank' 
+                ? `/api/bank-investments/${currentInvestmentId}`
+                : `/api/investments/${currentInvestmentId}`;
             
-            // Define API endpoint - use the same endpoint for all investment types
-            const apiEndpoint = `/api/investments/${currentInvestmentId}`;
+            console.log("Using API endpoint:", apiEndpoint);
+            
+            let data;
             
             if (investmentType === 'bank') {
-                // Validate bank deposit fields
-                const depositAmount = document.getElementById('editDepositAmount').value;
-                const interestRate = document.getElementById('editInterestRate').value;
+                // For bank investments
+                const depositAmount = document.getElementById('editDepositAmount').value.trim();
+                const interestRate = document.getElementById('editInterestRate').value.trim();
                 
                 if (!depositAmount || isNaN(parseFloat(depositAmount)) || parseFloat(depositAmount) <= 0) {
                     Notify.warning("Внимание", "Моля, въведете валидна сума на депозита");
                     return;
                 }
                 
-                if (interestRate === '' || isNaN(parseFloat(interestRate))) {
+                // Validate interest rate value
+                // Ensure we're handling the value consistently - trim whitespace and use parseFloat
+                let interestRateValue = parseFloat(interestRate);
+                
+                if (interestRate === '' || isNaN(interestRateValue)) {
                     Notify.warning("Внимание", "Моля, въведете валиден лихвен процент");
                     return;
                 }
                 
+                if (interestRateValue < 0) {
+                    Notify.warning("Внимание", "Лихвеният процент не може да бъде отрицателен");
+                    return;
+                }
+                
+                // Format to ensure we're sending a valid number with max 2 decimal places
+                interestRateValue = parseFloat(interestRateValue.toFixed(2));
+                
+                // Match the expected parameter names in your bank investment controller
                 data = {
-                    ...data,
-                    currency: document.getElementById('editDepositCurrency').value,
-                    quantity: parseFloat(depositAmount),
-                    interest_rate: parseFloat(interestRate),
+                    amount: parseFloat(depositAmount),
+                    interest_rate: interestRateValue, // Use the validated and formatted value
                     interest_type: document.getElementById('editInterestType').value,
-                    purchase_price: 1 // Default for bank deposits
+                    investment_date: document.getElementById('editInvestmentDate').value,
+                    currency: document.getElementById('editDepositCurrency').value,
+                    notes: document.getElementById('editInvestmentNotes').value || null
                 };
+                
+                console.log("Prepared bank investment data:", data);
             } else {
-                // Validate standard fields
+                // For other types of investments
                 const symbol = document.getElementById('editInvestmentSymbol').value;
                 const amount = document.getElementById('editInvestmentAmount').value;
                 const price = document.getElementById('editInvestmentPrice').value;
@@ -763,16 +801,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 data = {
-                    ...data,
+                    investment_type: investmentType,
                     symbol: symbol,
                     quantity: parseFloat(amount),
                     purchase_price: parseFloat(price),
-                    currency: document.getElementById('editInvestmentCurrency').value
+                    currency: document.getElementById('editInvestmentCurrency').value,
+                    purchase_date: document.getElementById('editInvestmentDate').value,
+                    notes: document.getElementById('editInvestmentNotes').value || null
                 };
             }
             
-            console.log("Данни за изпращане:", data);
-            console.log("API Endpoint:", apiEndpoint);
+            console.log("Sending data:", data);
+            console.log("To endpoint:", apiEndpoint);
             
             // Send update request
             fetch(apiEndpoint, {
@@ -784,27 +824,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 credentials: 'same-origin'
             })
             .then(response => {
-                console.log("Статус на отговора:", response.status);
-                return response.json().then(data => {
+                console.log("Response status:", response.status);
+                // Check if response contains JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json().then(data => {
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Неуспешно обновяване на инвестицията');
+                        }
+                        return data;
+                    });
+                } else {
                     if (!response.ok) {
-                        throw new Error(data.message || 'Неуспешно обновяване на инвестицията');
+                        return response.text().then(text => {
+                            throw new Error(text || 'Неуспешно обновяване на инвестицията');
+                        });
                     }
-                    return data;
-                });
+                    return { success: true };
+                }
             })
             .then(data => {
-                console.log("Успешно обновяване:", data);
+                console.log("Update success:", data);
                 Notify.success("Успех", "Инвестицията беше успешно обновена!");
                 closeModal();
                 // Reload data to show changes
                 fetchPortfolioHistory();
             })
             .catch(error => {
-                console.error('Грешка при обновяване на инвестицията:', error);
+                console.error('Error updating investment:', error);
                 Notify.error("Грешка", "Грешка при обновяване на инвестицията: " + error.message);
             });
         } catch (error) {
-            console.error('Грешка при обработка на данните за инвестицията:', error);
+            console.error('Error processing investment data:', error);
             Notify.error("Грешка", "Грешка при обработка на данните: " + error.message);
         }
     }
@@ -816,36 +867,61 @@ document.addEventListener('DOMContentLoaded', function() {
             Notify.error("Грешка", "Не е зададено ID на инвестиция за изтриване");
             return;
         }
-        
-        console.log("Изтриване на инвестиция ID:", investmentId);
-        
-        fetch('/api/investments/' + investmentId, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'same-origin'
-        })
-        .then(response => {
+    
+    // Find the investment in our data to determine its type
+    const investment = findInvestmentById(investmentId);
+    if (!investment) {
+        console.error("Cannot determine investment type - investment not found");
+        Notify.error("Грешка", "Инвестицията не е намерена");
+        return;
+    }
+    
+    // Get the investment type
+    const investmentType = investment.investment_type;
+    console.log("Deleting investment type:", investmentType);
+    
+    // Choose the correct endpoint based on investment type
+    const endpoint = investmentType === 'bank' 
+        ? `/api/bank-investments/${investmentId}` 
+        : `/api/investments/${investmentId}`;
+    
+    console.log("Using delete endpoint:", endpoint);
+    
+    fetch(endpoint, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        // Handle the case where response may not be JSON
+        if (response.headers.get('content-type')?.includes('application/json')) {
             return response.json().then(data => {
                 if (!response.ok) {
                     throw new Error(data.message || 'Неуспешно изтриване на инвестицията');
                 }
                 return data;
             });
-        })
-        .then(data => {
-            console.log("Успешно изтриване:", data);
-            Notify.success("Успех", "Инвестицията беше успешно изтрита!");
-            closeModal();
-            // Reload data to show changes
-            fetchPortfolioHistory();
-        })
-        .catch(error => {
-            console.error('Грешка при изтриване на инвестицията:', error);
-            Notify.error("Грешка", "Грешка при изтриване на инвестицията: " + error.message);
-        });
-    }
+        } else {
+            if (!response.ok) {
+                throw new Error('Неуспешно изтриване на инвестицията');
+            }
+            return { success: true };
+        }
+    })
+    .then(data => {
+        console.log("Успешно изтриване:", data);
+        Notify.success("Успех", "Инвестицията беше успешно изтрита!");
+        closeModal();
+        // Reload data to show changes
+        fetchPortfolioHistory();
+    })
+    .catch(error => {
+        console.error('Грешка при изтриване на инвестицията:', error);
+        Notify.error("Грешка", "Грешка при изтриване на инвестицията: " + error.message);
+    });
+}
 
     // Update the history chart with data
     function updateHistoryChart(chartData) {
