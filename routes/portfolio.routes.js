@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
+const BankInvestment = require("../models/bank.investment.model");
 
 // Middleware to check authentication
 const requireAuth = (req, res, next) => {
@@ -21,11 +22,34 @@ router.get("/", requireAuth, async (req, res) => {
     try {
         const userId = req.session.user.id;
         
-        // Fetch all investments for the user
-        const [investments] = await pool.query(
-            `SELECT * FROM user_investments WHERE user_id = ? ORDER BY purchase_date DESC`, 
+        // Fetch regular investments from user_investments
+        const [regularInvestments] = await pool.query(
+            `SELECT * FROM user_investments WHERE user_id = ? AND investment_type != 'bank' ORDER BY purchase_date DESC`, 
             [userId]
         );
+        
+        // Fetch bank investments from bank_investment table
+        const [bankInvestmentsRaw] = await pool.query(
+            `SELECT 
+                id,
+                user_id,
+                'bank' AS investment_type,
+                CONCAT('BANK_', currency) AS symbol,
+                amount AS quantity,
+                1 AS purchase_price,
+                currency,
+                interest_rate,
+                interest_type,
+                investment_date AS purchase_date,
+                notes
+            FROM bank_investment 
+            WHERE user_id = ? 
+            ORDER BY investment_date DESC`, 
+            [userId]
+        );
+        
+        // Combine both investment types
+        const investments = [...regularInvestments, ...bankInvestmentsRaw];
         
         // Define hardcoded exchange rates (BGN to other currencies)
         // Only used as fallback if currency prices are not available
@@ -290,11 +314,34 @@ router.get("/history/data", requireAuth, async (req, res) => {
     try {
         const userId = req.session.user.id;
         
-        // Get all investments for the user
-        const [investments] = await pool.query(
-            `SELECT * FROM user_investments WHERE user_id = ? ORDER BY purchase_date DESC`, 
+        // Get regular investments from user_investments
+        const [regularInvestments] = await pool.query(
+            `SELECT * FROM user_investments WHERE user_id = ? AND investment_type != 'bank' ORDER BY purchase_date DESC`, 
             [userId]
         );
+        
+        // Get bank investments
+        const [bankInvestmentsRaw] = await pool.query(
+            `SELECT 
+                id,
+                user_id,
+                'bank' AS investment_type,
+                CONCAT('BANK_', currency) AS symbol,
+                amount AS quantity,
+                1 AS purchase_price,
+                currency,
+                interest_rate,
+                interest_type,
+                investment_date AS purchase_date,
+                notes
+            FROM bank_investment 
+            WHERE user_id = ? 
+            ORDER BY investment_date DESC`, 
+            [userId]
+        );
+        
+        // Combine both types of investments
+        const investments = [...regularInvestments, ...bankInvestmentsRaw];
         
         // Get all historical price data
         const [priceHistory] = await pool.query(`
@@ -412,14 +459,6 @@ function getLatestPrice(priceMap, symbol) {
     );
     
     return sortedPrices[0].price;
-}
-
-/**
- * Helper function to calculate months between two dates
- */
-function monthsBetween(date1, date2) {
-    const months = (date2.getFullYear() - date1.getFullYear()) * 12;
-    return months + date2.getMonth() - date1.getMonth();
 }
 
 /**

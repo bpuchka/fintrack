@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Профил - FinTrack</title>
+    <link rel="stylesheet" href="/home/header-design.css">
+    <link rel="stylesheet" href="/home/home-design.css">
+    <link rel="stylesheet" href="/profile/profile-design.css">
+</head>
+<body>
+    
+    <%- include('partials/header') %>
+
+    <main class="profile-container">
+        <div class="profile-header">
+            <h1>Вашият <a style="color: #6dc0e0;">профил</a></h1>
+            <div class="user-role-badge <%= user.isAdmin ? 'admin-badge' : 'standard-badge' %>">
+                <%= user.isAdmin ? 'Администратор' : 'Стандартен потребител' %>
+            </div>
+        </div>
+
+        <div class="profile-content">
+            <div class="profile-card">
+                <div class="profile-section">
+                    <h2>Лична информация</h2>
+                    <form id="profile-info-form">
+                        <div class="form-group">
+                            <label for="username">Потребителско име</label>
+                            <div class="input-container">
+                                <input type="text" id="username" name="username" value="<%= user.username %>" required>
+                                <div class="validation-box" id="username-validation-box">
+                                    <span class="validation-message">Поне 6 символа</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Имейл адрес</label>
+                            <div class="input-container">
+                                <input type="email" id="email" name="email" value="<%= user.email %>" required>
+                                <div class="validation-box" id="email-validation-box">
+                                    <span class="validation-message">Неправилен формат на имейл</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" id="update-info-btn" class="primary-btn">Запази промените</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="profile-card">
+                <div class="profile-section">
+                    <h2>Смяна на парола</h2>
+                    <form id="password-form">
+                        <div class="form-group">
+                            <label for="current-password">Текуща парола</label>
+                            <div class="input-container">
+                                <input type="password" id="current-password" name="currentPassword" required>
+                                <div class="validation-box" id="current-password-validation-box">
+                                    <span class="validation-message">Невалидна парола</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-password">Нова парола</label>
+                            <div class="input-container">
+                                <input type="password" id="new-password" name="newPassword" required>
+                                <div class="validation-box" id="new-password-validation-box">
+                                    <span class="validation-message" id="password-validation-message">
+                                        Паролата трябва да съдържа: <br>
+                                        <span id="length-requirement">• 8-32 символа; <br></span>
+                                        <span id="uppercase-requirement">• поне 1 главна буква; <br></span>
+                                        <span id="lowercase-requirement">• поне 1 малка буква; <br></span>
+                                        <span id="digit-requirement">• поне 1 цифра; <br></span>
+                                        <span id="special-requirement">• специален символ (@$!%*?&).<br></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm-password">Потвърди новата парола</label>
+                            <div class="input-container">
+                                <input type="password" id="confirm-password" name="confirmPassword" required>
+                                <div class="validation-box" id="confirm-password-validation-box">
+                                    <span class="validation-message">Паролите не съвпадат</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" id="update-password-btn" class="primary-btn">Смени паролата</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="profile-card danger-zone">
+                <div class="profile-section">
+                    <h2>Опасна зона</h2>
+                    <p>Внимание: Следните действия са необратими и могат да доведат до загуба на данни.</p>
+                    <div class="danger-actions">
+                        <button id="logout-all-btn" class="warning-btn">Излез от всички устройства</button>
+                        <button id="delete-account-btn" class="danger-btn">Изтрий акаунта</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Потвърждение</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="modal-message">Сигурни ли сте, че искате да продължите?</p>
+                <div class="modal-actions">
+                    <button id="cancel-action" class="secondary-btn">Отказ</button>
+                    <button id="confirm-action" class="danger-btn">Потвърди</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="/fintrack-header-logo.svg" alt="Logo">
+            </div>
+            <div class="footer-menu">
+                <nav>
+                    <ul>
+                        <li><a href="/home">Начало</a></li>
+                        <li><a href="/blog">Блог</a></li>
+                        <li><a href="/contact">Контакти</a></li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="footer-social-media">
+                <a href="#">Facebook</a>
+                <a href="#">Instagram</a>
+                <a href="#">Twitter/X</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/js/notification.js"></script>
+    <script src="/profile/profile-script.js"></script>
+</body>
+</html>

@@ -164,8 +164,62 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup delete functionality
     if (deleteBtn) {
         deleteBtn.addEventListener('click', function() {
-            if (confirm('Сигурни ли сте, че искате да изтриете тази инвестиция?')) {
-                deleteInvestment(currentInvestmentId);
+            // Use the modal confirmation instead of browser's confirm
+            openConfirmationModal(
+                "Изтриване на инвестиция", 
+                "Сигурни ли сте, че искате да изтриете тази инвестиция? Това действие не може да бъде отменено.",
+                function() {
+                    deleteInvestment(currentInvestmentId);
+                }
+            );
+        });
+    }
+
+        // Confirmation modal function
+        function openConfirmationModal(title, message, confirmCallback) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'flex';
+            
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 400px;">
+                    <div class="modal-header">
+                        <h2>${title}</h2>
+                        <span class="close-modal">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <p>${message}</p>
+                        <div class="modal-actions">
+                            <button class="cancel-button">Отказ</button>
+                            <button class="delete-button">Изтрий</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling    
+             // Add event listeners
+        const closeBtn = modal.querySelector('.close-modal');
+        const cancelBtn = modal.querySelector('.cancel-button');
+        const confirmBtn = modal.querySelector('.delete-button');
+        
+        function closeConfirmModal() {
+            modal.remove();
+            document.body.style.overflow = 'auto'; // Re-enable scrolling
+        }
+        
+        closeBtn.addEventListener('click', closeConfirmModal);
+        cancelBtn.addEventListener('click', closeConfirmModal);
+        
+        confirmBtn.addEventListener('click', function() {
+            closeConfirmModal();
+            if (confirmCallback) confirmCallback();
+        });
+        
+        // Close when clicking outside the modal
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeConfirmModal();
             }
         });
     }
@@ -645,7 +699,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function saveInvestmentChanges() {
         if (!currentInvestmentId) {
             console.error("Не е зададено ID на инвестиция за редактиране");
-            alert('Грешка: Не е зададено ID на инвестиция за редактиране');
+            Notify.error("Грешка", "Не е зададено ID на инвестиция за редактиране");
             return;
         }
         
@@ -661,18 +715,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 notes: document.getElementById('editInvestmentNotes').value || null
             };
             
+            // Define API endpoint - use the same endpoint for all investment types
+            const apiEndpoint = `/api/investments/${currentInvestmentId}`;
+            
             if (investmentType === 'bank') {
                 // Validate bank deposit fields
                 const depositAmount = document.getElementById('editDepositAmount').value;
                 const interestRate = document.getElementById('editInterestRate').value;
                 
                 if (!depositAmount || isNaN(parseFloat(depositAmount)) || parseFloat(depositAmount) <= 0) {
-                    alert('Моля, въведете валидна сума на депозита');
+                    Notify.warning("Внимание", "Моля, въведете валидна сума на депозита");
                     return;
                 }
                 
                 if (interestRate === '' || isNaN(parseFloat(interestRate))) {
-                    alert('Моля, въведете валиден лихвен процент');
+                    Notify.warning("Внимание", "Моля, въведете валиден лихвен процент");
                     return;
                 }
                 
@@ -691,17 +748,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 const price = document.getElementById('editInvestmentPrice').value;
                 
                 if (!symbol) {
-                    alert('Моля, изберете символ');
+                    Notify.warning("Внимание", "Моля, изберете символ");
                     return;
                 }
                 
                 if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-                    alert('Моля, въведете валидно количество');
+                    Notify.warning("Внимание", "Моля, въведете валидно количество");
                     return;
                 }
                 
                 if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
-                    alert('Моля, въведете валидна цена');
+                    Notify.warning("Внимание", "Моля, въведете валидна цена");
                     return;
                 }
                 
@@ -715,9 +772,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             console.log("Данни за изпращане:", data);
+            console.log("API Endpoint:", apiEndpoint);
             
             // Send update request
-            fetch('/api/investments/' + currentInvestmentId, {
+            fetch(apiEndpoint, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -736,18 +794,18 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(data => {
                 console.log("Успешно обновяване:", data);
-                alert('Инвестицията беше успешно обновена!');
+                Notify.success("Успех", "Инвестицията беше успешно обновена!");
                 closeModal();
                 // Reload data to show changes
                 fetchPortfolioHistory();
             })
             .catch(error => {
                 console.error('Грешка при обновяване на инвестицията:', error);
-                alert('Грешка при обновяване на инвестицията: ' + error.message);
+                Notify.error("Грешка", "Грешка при обновяване на инвестицията: " + error.message);
             });
         } catch (error) {
             console.error('Грешка при обработка на данните за инвестицията:', error);
-            alert('Грешка при обработка на данните: ' + error.message);
+            Notify.error("Грешка", "Грешка при обработка на данните: " + error.message);
         }
     }
 
@@ -755,6 +813,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function deleteInvestment(investmentId) {
         if (!investmentId) {
             console.error("Не е зададено ID на инвестиция за изтриване");
+            Notify.error("Грешка", "Не е зададено ID на инвестиция за изтриване");
             return;
         }
         
@@ -777,14 +836,14 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             console.log("Успешно изтриване:", data);
-            alert('Инвестицията беше успешно изтрита!');
+            Notify.success("Успех", "Инвестицията беше успешно изтрита!");
             closeModal();
             // Reload data to show changes
             fetchPortfolioHistory();
         })
         .catch(error => {
             console.error('Грешка при изтриване на инвестицията:', error);
-            alert('Грешка при изтриване на инвестицията: ' + error.message);
+            Notify.error("Грешка", "Грешка при изтриване на инвестицията: " + error.message);
         });
     }
 

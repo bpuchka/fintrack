@@ -10,14 +10,14 @@ const requireAuth = (req, res, next) => {
     next();
 };
 
-// Get all user investments
+// Get all user investments (excluding bank investments)
 router.get("/", requireAuth, async (req, res) => {
     try {
         const userId = req.session.user.id;
         
-        // Query to get all user investments
+        // Query to get all user investments except bank investments
         const [investments] = await pool.query(
-            `SELECT * FROM user_investments WHERE user_id = ? ORDER BY purchase_date DESC`, 
+            `SELECT * FROM user_investments WHERE user_id = ? AND investment_type != 'bank' ORDER BY purchase_date DESC`, 
             [userId]
         );
         
@@ -28,14 +28,14 @@ router.get("/", requireAuth, async (req, res) => {
     }
 });
 
-// Get investments by type
+// Get investments by type (excluding bank since that's handled by bank investment routes)
 router.get("/type/:type", requireAuth, async (req, res) => {
     try {
         const userId = req.session.user.id;
         const type = req.params.type;
         
-        // Validate investment type
-        if (!['bank', 'crypto', 'stock', 'metal'].includes(type)) {
+        // Validate investment type - bank is now excluded
+        if (!['crypto', 'stock', 'metal'].includes(type)) {
             return res.status(400).json({ success: false, message: "Невалиден тип инвестиция" });
         }
         
@@ -52,14 +52,14 @@ router.get("/type/:type", requireAuth, async (req, res) => {
     }
 });
 
-// Add new investment
+// Add new investment (now only for non-bank investments)
 router.post("/", requireAuth, async (req, res) => {
     try {
         const userId = req.session.user.id;
         const { type, date, notes, currency } = req.body;
         
-        // Validate investment type
-        if (!['bank', 'crypto', 'stock', 'metal'].includes(type)) {
+        // Validate investment type - bank is now excluded
+        if (!['crypto', 'stock', 'metal'].includes(type)) {
             return res.status(422).json({ success: false, message: "Невалиден тип инвестиция" });
         }
         
@@ -76,60 +76,33 @@ router.post("/", requireAuth, async (req, res) => {
             notes: notes || null
         };
         
-        // Type-specific validation and data preparation
-        if (type === 'bank') {
-            const { currency, amount, interestRate, interestType } = req.body;
-            
-            // Validate bank deposit data
-            if (!currency) {
-                return res.status(422).json({ success: false, message: "Валутата е задължителна" });
-            }
-            if (!amount || isNaN(amount) || amount <= 0) {
-                return res.status(422).json({ success: false, message: "Невалидна сума" });
-            }
-            if (!interestRate || isNaN(interestRate) || interestRate < 0 || interestRate > 100) {
-                return res.status(422).json({ success: false, message: "Невалиден лихвен процент" });
-            }
-            
-            // Add bank-specific data
-            insertData = {
-                ...insertData,
-                symbol: `BANK_${currency}`,
-                quantity: amount,
-                purchase_price: 1, // Placeholder value
-                currency: currency,
-                interest_rate: interestRate,
-                interest_type: interestType
-            };
-        } else {
-            // For crypto, stock, and metal
-            const { symbol, amount, price } = req.body;
-            
-            // Validate other investment types
-            if (!symbol) {
-                return res.status(422).json({ success: false, message: "Символът е задължителен" });
-            }
-            
-            // Handle very small quantities (for crypto especially)
-            let quantity = parseFloat(amount);
-            if (!amount || isNaN(quantity) || quantity <= 0) {
-                return res.status(422).json({ success: false, message: "Невалидно количество" });
-            }
-            
-            if (!price || isNaN(price) || price <= 0) {
-                return res.status(422).json({ success: false, message: "Невалидна цена" });
-            }
-            
-            // Add type-specific data
-            insertData = {
-                ...insertData,
-                symbol: symbol,
-                quantity: quantity,
-                purchase_price: price,
-                // Include currency if provided (for non-bank investments)
-                currency: currency || 'BGN'
-            };
+        // For crypto, stock, and metal investments
+        const { symbol, amount, price } = req.body;
+        
+        // Validate investment
+        if (!symbol) {
+            return res.status(422).json({ success: false, message: "Символът е задължителен" });
         }
+        
+        // Handle very small quantities (for crypto especially)
+        let quantity = parseFloat(amount);
+        if (!amount || isNaN(quantity) || quantity <= 0) {
+            return res.status(422).json({ success: false, message: "Невалидно количество" });
+        }
+        
+        if (!price || isNaN(price) || price <= 0) {
+            return res.status(422).json({ success: false, message: "Невалидна цена" });
+        }
+        
+        // Add type-specific data
+        insertData = {
+            ...insertData,
+            symbol: symbol,
+            quantity: quantity,
+            purchase_price: price,
+            // Include currency if provided
+            currency: currency || 'BGN'
+        };
         
         // Insert the investment into the database
         const [result] = await pool.query("INSERT INTO user_investments SET ?", insertData);
@@ -160,11 +133,33 @@ router.get("/summary", requireAuth, async (req, res) => {
     try {
         const userId = req.session.user.id;
         
-        // Get all user investments directly from the database
-        const [investments] = await pool.query(
-            `SELECT * FROM user_investments WHERE user_id = ?`, 
+        // Get regular investments from user_investments
+        const [regularInvestments] = await pool.query(
+            `SELECT * FROM user_investments WHERE user_id = ? AND investment_type != 'bank'`, 
             [userId]
         );
+        
+        // Get bank investments from bank_investment
+        const [bankInvestmentsRaw] = await pool.query(
+            `SELECT 
+                id,
+                user_id,
+                'bank' AS investment_type,
+                CONCAT('BANK_', currency) AS symbol,
+                amount AS quantity,
+                1 AS purchase_price,
+                currency,
+                interest_rate,
+                interest_type,
+                investment_date AS purchase_date,
+                notes
+            FROM bank_investment 
+            WHERE user_id = ?`, 
+            [userId]
+        );
+        
+        // Combine both types of investments
+        const investments = [...regularInvestments, ...bankInvestmentsRaw];
         
         // Get latest price data for all symbols
         const [latestPrices] = await pool.query(`
@@ -360,8 +355,12 @@ router.put("/:id", requireAuth, async (req, res) => {
             return res.status(422).json({ success: false, message: "Purchase date is required" });
         }
         
-        // Prepare update data
+        // Get current investment details
+        const currentInvestment = existing[0];
+        
+        // Prepare update data - include the investment_type to prevent type mismatch issues
         let updateData = {
+            investment_type: investment_type,
             purchase_date: purchase_date,
             notes: notes || null
         };
@@ -381,10 +380,12 @@ router.put("/:id", requireAuth, async (req, res) => {
             
             updateData = {
                 ...updateData,
+                symbol: `BANK_${currency}`, // Ensure bank symbol follows convention
                 quantity: quantity,
                 currency: currency,
                 interest_rate: interest_rate,
-                interest_type: interest_type
+                interest_type: interest_type,
+                purchase_price: 1 // Default for bank deposits
             };
         } else {
             // Validate other investment types
@@ -406,7 +407,10 @@ router.put("/:id", requireAuth, async (req, res) => {
                 symbol: symbol,
                 quantity: parsedQuantity,
                 purchase_price: purchase_price,
-                currency: currency
+                currency: currency,
+                // Set bank-specific fields to null for non-bank investments
+                interest_rate: null,
+                interest_type: null
             };
         }
         
@@ -448,9 +452,9 @@ router.delete("/:id", requireAuth, async (req, res) => {
         
         console.log("Delete request received for investment ID:", investmentId);
         
-        // First check if the investment belongs to the user
+        // First check if the investment belongs to the user and is not a bank investment
         const [existing] = await pool.query(
-            `SELECT * FROM user_investments WHERE id = ? AND user_id = ?`, 
+            `SELECT * FROM user_investments WHERE id = ? AND user_id = ? AND investment_type != 'bank'`, 
             [investmentId, userId]
         );
         
@@ -463,7 +467,7 @@ router.delete("/:id", requireAuth, async (req, res) => {
         
         // Delete the investment
         const [result] = await pool.query(
-            "DELETE FROM user_investments WHERE id = ? AND user_id = ?", 
+            "DELETE FROM user_investments WHERE id = ? AND user_id = ? AND investment_type != 'bank'", 
             [investmentId, userId]
         );
         
