@@ -1,0 +1,408 @@
+/* Investments page styles */
+:root {
+    --bank-color: #6dc0e0;
+    --crypto-color: #8e44ad;
+    --stock-color: #27ae60;
+    --metal-color: #f39c12;
+}
+
+.investment-container {
+    margin-top: 5rem;
+    padding: 0 6rem;
+    width: 100%;
+    box-sizing: border-box;
+    color: #ffffff;
+}
+
+.investment-header {
+    margin-bottom: 3rem;
+}
+
+.investment-header h1 {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    margin: 0;
+}
+
+.last-updated {
+    color: #999;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+/* Summary cards */
+.investment-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.summary-card {
+    background-color: #2c2c2c;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.summary-card h2 {
+    font-size: 1.2rem;
+    margin: 0 0 1rem 0;
+    color: #ccc;
+}
+
+.summary-card .amount {
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: #fff;
+}
+
+.summary-card.new-investment {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.new-investment-desc {
+    color: #ccc;
+    margin: 0 0 1.5rem 0;
+    font-size: 0.9rem;
+}
+
+.new-investment-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8rem;
+    background-color: var(--bank-color);
+    color: #fff !important;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    text-align: center;
+    margin-top: auto;
+    border: none;
+    cursor: pointer;
+}
+
+.new-investment-button:hover {
+    background-color: #5ba8c7;
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.change {
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.change.positive {
+    color: #27ae60;
+}
+
+.change.negative {
+    color: #e74c3c;
+}
+
+/* Investment type specific colors */
+.investment-type-bank .new-investment-button {
+    background-color: var(--bank-color);
+}
+
+.investment-type-crypto .new-investment-button {
+    background-color: var(--crypto-color);
+}
+
+.investment-type-stock .new-investment-button {
+    background-color: var(--stock-color);
+}
+
+.investment-type-metal .new-investment-button {
+    background-color: var(--metal-color);
+}
+
+/* Charts and performance section */
+.investment-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.chart-container, .investment-performance {
+    background-color: #2c2c2c;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.chart-wrapper {
+    height: 300px;
+    position: relative;
+}
+
+.investment-performance h2, .chart-container h2 {
+    font-size: 1.3rem;
+    margin: 0 0 1.5rem 0;
+    color: #ccc;
+}
+
+/* Table styles */
+.investments-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.investments-table th,
+.investments-table td {
+    padding: 1rem 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid #444;
+}
+
+.investments-table th {
+    color: #ccc;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.investments-table tr:hover {
+    background-color: #3c3c3c;
+}
+
+.no-data-row td {
+    text-align: center;
+    padding: 2rem;
+    color: #888;
+}
+
+.investment-value.positive {
+    color: #27ae60;
+}
+
+.investment-value.negative {
+    color: #e74c3c;
+}
+
+/* Action buttons */
+.table-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-btn {
+    background-color: #3c3c3c;
+    border: none;
+    border-radius: 5px;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.action-btn:hover {
+    background-color: #4a4a4a;
+    transform: translateY(-2px);
+}
+
+.action-btn.edit {
+    color: var(--bank-color);
+}
+
+.action-btn.delete {
+    color: #e74c3c;
+}
+
+/* Insights section */
+.investment-insights {
+    background-color: #2c2c2c;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    margin-bottom: 3rem;
+}
+
+.investment-insights h2 {
+    font-size: 1.3rem;
+    margin: 0 0 1.5rem 0;
+    color: #ccc;
+}
+
+.insight-card {
+    background-color: #3c3c3c;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.insight-title {
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+}
+
+.insight-description {
+    color: #ccc;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Action buttons at bottom */
+.investment-actions {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 4rem;
+}
+
+.action-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 2rem;
+    background-color: var(--bank-color);
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.action-button:hover {
+    background-color: #5ba8c7;
+    transform: translateY(-3px);
+}
+
+.action-button.secondary {
+    background-color: #3c3c3c;
+}
+
+.action-button.secondary:hover {
+    background-color: #4a4a4a;
+}
+
+/* Modal styles are already in portfolio.css */
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .investment-container {
+        padding: 0 3rem;
+    }
+    
+    .investment-summary, .investment-charts {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .investments-table {
+        overflow-x: auto;
+        display: block;
+    }
+}
+
+@media (max-width: 768px) {
+    .investment-container {
+        padding: 0 2rem;
+    }
+    
+    .investment-actions {
+        flex-direction: column;
+    }
+    
+    .table-actions {
+        flex-direction: column;
+    }
+    
+    .action-btn {
+        width: 100%;
+        text-align: center;
+        padding: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .investment-container {
+        padding: 0 1rem;
+    }
+    
+    .summary-card .amount {
+        font-size: 1.5rem;
+    }
+    
+    .chart-wrapper {
+        height: 250px;
+    }
+    
+    .investments-table th,
+    .investments-table td {
+        padding: 0.8rem 0.5rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* Type-specific color themes */
+.investment-type-bank .action-button,
+.bank-color {
+    background-color: var(--bank-color);
+}
+
+.investment-type-crypto .action-button,
+.crypto-color {
+    background-color: var(--crypto-color);
+}
+
+.investment-type-stock .action-button,
+.stock-color {
+    background-color: var(--stock-color);
+}
+
+.investment-type-metal .action-button,
+.metal-color {
+    background-color: var(--metal-color);
+}
+
+/* Text color classes */
+.investment-type-text {
+    text-decoration: none;
+}
+
+.bank-color {
+    color: var(--bank-color) !important;
+    background-color: transparent;
+}
+
+.crypto-color {
+    color: var(--crypto-color) !important;
+    background-color: transparent;
+}
+
+.stock-color {
+    color: var(--stock-color) !important;
+    background-color: transparent;
+}
+
+.metal-color {
+    color: var(--metal-color) !important;
+    background-color: transparent;
+}
+
+.investment-type-bank .action-btn.edit {
+    color: var(--bank-color);
+}
+
+.investment-type-crypto .action-btn.edit {
+    color: var(--crypto-color);
+}
+
+.investment-type-stock .action-btn.edit {
+    color: var(--stock-color);
+}
+
+.investment-type-metal .action-btn.edit {
+    color: var(--metal-color);
+}

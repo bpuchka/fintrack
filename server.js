@@ -158,6 +158,10 @@ app.get("/profile", requireAuth, (req, res) => {
     res.render("profile", { user: req.session.user });
 });
 
+app.get("/investments", requireAuth, (req, res) => {
+    res.render("investments", { user: req.session.user });
+});
+
 // API Routes
 const blogRoutes = require("./routes/blog.routes.js");
 
@@ -172,6 +176,7 @@ app.use("/api/blog", require("./routes/blog.api.routes.js"));
 app.use("/api/portfolio", require("./routes/portfolio.routes.js"));
 app.use("/profile", require("./routes/profile.routes.js"));
 app.use("/api/bank-investments", require("./routes/bank.investment.routes.js"));
+app.use("/investments", require("./routes/investments-page.routes.js"));
 
 
 // 404 Handler - Catch-all for unmatched routes

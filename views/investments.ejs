@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= investmentTypeDisplay %> - FinTrack</title>
+    <link rel="stylesheet" href="/home/header-design.css">
+    <link rel="stylesheet" href="/home/home-design.css">
+    <link rel="stylesheet" href="/portfolio/portfolio-design.css">
+    <link rel="stylesheet" href="/investments/investments-design.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    
+    <%- include('partials/header') %>
+
+    <main class="investment-container">
+        <div class="investment-header">
+            <h1>Управление на <a class="investment-type-text <%= investmentType %>-color"><%= investmentTypeDisplay %></a></h1>
+            <p class="last-updated">Последно обновено: <span id="last-updated-date">28.02.2025</span></p>
+        </div>
+
+        <div class="investment-summary">
+            <div class="summary-card total-value">
+                <h2>Обща стойност</h2>
+                <p class="amount" id="total-investment-value">0.00 лв.</p>
+                <p class="change" id="total-investment-change">0.0% от първоначалната инвестиция</p>
+            </div>
+            <div class="summary-card profit">
+                <h2>Печалба</h2>
+                <p class="amount" id="total-investment-profit">0.00 лв.</p>
+                <p class="change" id="profit-percentage">0.0%</p>
+            </div>
+            <div class="summary-card new-investment">
+                <h2>Добави нова инвестиция</h2>
+                <p class="new-investment-desc">Добавете нова <%= investmentTypeDisplay.toLowerCase() %> инвестиция към вашето портфолио</p>
+                <button id="newInvestmentBtn" class="new-investment-button">
+                    <span>+ Нова инвестиция</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="investment-charts">
+            <div class="chart-container">
+                <h2>История на стойността</h2>
+                <div class="chart-wrapper">
+                    <canvas id="investment-history-chart"></canvas>
+                </div>
+            </div>
+            <div class="investment-performance">
+                <h2>Представяне на инвестициите</h2>
+                <div id="investments-table-container">
+                    <table class="investments-table">
+                        <thead>
+                            <tr>
+                                <th>Име/Символ</th>
+                                <th>Количество</th>
+                                <th>Покупна цена</th>
+                                <th>Текуща стойност</th>
+                                <th>Печалба/Загуба</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="investments-table-body">
+                            <!-- This will be populated dynamically -->
+                            <tr class="no-data-row">
+                                <td colspan="6">Няма инвестиции от този тип. Добавете нова инвестиция, за да започнете.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="investment-insights" id="investment-insights">
+            <!-- This section will be populated with insights about the investments -->
+        </div>
+
+        <div class="investment-actions">
+            <a href="/portfolio" class="action-button secondary">
+                <span>Към портфолиото</span>
+            </a>
+            <a href="/portfolio/history" class="action-button secondary">
+                <span>История на портфолиото</span>
+            </a>
+        </div>
+    </main>
+
+    <!-- New Investment Modal -->
+    <div id="investmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Добави нова инвестиция</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="investmentForm">
+                    <input type="hidden" id="investmentId" name="investmentId">
+                    <input type="hidden" id="investmentType" name="investmentType" value="<%= investmentType %>">
+                    
+                    <% if (investmentType === 'bank') { %>
+                    <!-- Bank deposit fields -->
+                    <div class="form-group">
+                        <label for="depositCurrency">Валута</label>
+                        <select id="depositCurrency" name="depositCurrency" required>
+                            <option value="BGN">Български лев (BGN)</option>
+                            <option value="USD">Щатски долар (USD)</option>
+                            <option value="EUR">Евро (EUR)</option>
+                            <option value="GBP">Британска лира (GBP)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="depositAmount">Сума</label>
+                        <input type="number" id="depositAmount" name="depositAmount" placeholder="0.00" step="0.01" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="interestRate">Лихвен процент (%)</label>
+                        <input type="number" id="interestRate" name="interestRate" placeholder="0.00" step="0.01" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="interestType">Тип на лихвата</label>
+                        <select id="interestType" name="interestType" required>
+                            <option value="daily">Дневна</option>
+                            <option value="monthly_1">Месечна (1 месец)</option>
+                            <option value="monthly_3">Месечна (3 месеца)</option>
+                            <option value="monthly_6">Месечна (6 месеца)</option>
+                            <option value="yearly">Годишна</option>
+                        </select>
+                    </div>
+                    <% } else { %>
+                    <!-- Fields for other investment types (crypto, stocks, metals) -->
+                    <div class="form-group">
+                        <label for="investmentSymbol">Символ</label>
+                        <select id="investmentSymbol" name="investmentSymbol" required>
+                            <option value="" disabled selected>Изберете символ</option>
+                            <% if (investmentType === 'crypto') { %>
+                                <option value="BTC">BTC - Bitcoin</option>
+                                <option value="ETH">ETH - Ethereum</option>
+                                <option value="USDT">USDT - Tether</option>
+                                <option value="XRP">XRP - Ripple</option>
+                                <option value="SOL">SOL - Solana</option>
+                            <% } else if (investmentType === 'stock') { %>
+                                <option value="AAPL">AAPL - Apple Inc.</option>
+                                <option value="NVDA">NVDA - NVIDIA Corporation</option>
+                                <option value="TSLA">TSLA - Tesla Inc.</option>
+                            <% } else if (investmentType === 'metal') { %>
+                                <option value="GLD">GLD - SPDR Gold Shares</option>
+                                <option value="SLV">SLV - iShares Silver Trust</option>
+                            <% } %>
+                        </select>
+                    </div>
+                
+                    <div class="form-group">
+                        <label for="investmentAmount">Количество</label>
+                        <input type="number" id="investmentAmount" name="investmentAmount" placeholder="0.00000000" step="0.00000001" min="0.00000001" required>
+                        <small class="form-note">Поддържа до 8 десетични знака</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="investmentCurrency">Валута</label>
+                        <select id="investmentCurrency" name="investmentCurrency" required>
+                            <option value="BGN">Български лев (BGN)</option>
+                            <option value="USD">Щатски долар (USD)</option>
+                            <option value="EUR">Евро (EUR)</option>
+                            <option value="GBP">Британска лира (GBP)</option>
+                        </select>
+                    </div>
+                                        
+                    <div class="form-group">
+                        <label for="investmentPrice">Покупна цена</label>
+                        <input type="number" id="investmentPrice" name="investmentPrice" placeholder="0.00" step="0.01" required>
+                    </div>
+                    <% } %>
+
+                    <div class="form-group">
+                        <label for="investmentDate">Дата на покупка</label>
+                        <input type="date" id="investmentDate" name="investmentDate" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="investmentNotes">Бележки (незадължително)</label>
+                        <textarea id="investmentNotes" name="investmentNotes" placeholder="Допълнителна информация за инвестицията"></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button" id="cancelInvestment">Отказ</button>
+                        <button type="submit" class="submit-button" id="saveInvestment">Запази</button>
+                        <button type="button" class="delete-button" id="deleteInvestment" style="display: none;">Изтрий</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Dialog -->
+    <div id="confirmDialog" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Потвърждение</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">Сигурни ли сте, че искате да продължите?</p>
+                <div class="form-actions">
+                    <button type="button" class="cancel-button" id="cancelAction">Отказ</button>
+                    <button type="button" class="delete-button" id="confirmAction">Потвърди</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="/fintrack-header-logo.svg" alt="Logo">
+            </div>
+            <div class="footer-menu">
+                <nav>
+                    <ul>
+                        <li><a href="/home">Начало</a></li>
+                        <li><a href="/blog">Блог</a></li>
+                        <li><a href="/contact">Контакти</a></li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="footer-social-media">
+                <a href="#">Facebook</a>
+                <a href="#">Instagram</a>
+                <a href="#">Twitter/X</a>
+            </div>
+        </div>
+    </footer>
+    <script src="/js/notification.js"></script>
+    <script src="/investments/investments-script.js"></script>
+</body>
+</html>
