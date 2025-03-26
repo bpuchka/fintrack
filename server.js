@@ -163,19 +163,17 @@ app.get("/investments", requireAuth, (req, res) => {
 });
 
 // API Routes
-const blogRoutes = require("./routes/blog.routes.js");
-
 app.use("/api/auth", require("./routes/auth.routes.js"));
-app.use("/api/prices", require("./routes/investment-prices.routes.js"));
 app.use("/api/prices", require("./routes/price.routes.js"));
+app.use("/api/prices", require("./routes/investment-prices.routes.js"));
 app.use("/api/investments", require("./routes/investments.routes.js"));
-app.use("/api/portfolio", require("./routes/portfolio.routes.js"));
-app.use("/blog", blogRoutes);
-app.use("/admin/blog", isAdmin, blogRoutes);
-app.use("/api/blog", require("./routes/blog.api.routes.js"));
-app.use("/api/portfolio", require("./routes/portfolio.routes.js"));
-app.use("/profile", require("./routes/profile.routes.js"));
 app.use("/api/bank-investments", require("./routes/bank.investment.routes.js"));
+app.use("/api/portfolio", require("./routes/portfolio.routes.js"));
+
+// Page Routes
+app.use("/blog", require("./routes/blog.routes.js"));
+app.use("/admin/blog", isAdmin, require("./routes/blog.routes.js"));
+app.use("/profile", require("./routes/profile.routes.js"));
 app.use("/investments", require("./routes/investments-page.routes.js"));
 
 
