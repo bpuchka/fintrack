@@ -1,30 +1,20 @@
 document.addEventListener("DOMContentLoaded", function() {
-    // Set current date for "Last updated"
+    // Get current date for "Last updated"
     const today = new Date();
     const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
     document.getElementById('last-updated-date').textContent = today.toLocaleDateString('bg-BG', options);
     
-    // Get the investment type from the URL path
+    // Extract the investment type from the URL and page data
     const path = window.location.pathname;
     const pathParts = path.split('/');
-    // Extract the investment type (crypto, stock, metal)
-    const investmentType = pathParts[pathParts.length - 1];
-    
-    console.log("Extracted investment type:", investmentType);
-    
-    // Validate investment type to ensure it's one of the expected values
-    const validTypes = ['bank', 'crypto', 'stock', 'metal', 'stocks', 'metals'];
-    const normalizedType = validTypes.includes(investmentType) ? investmentType : 'bank';
+    let investmentType = pathParts[pathParts.length - 1];
     
     // Handle plural forms in URLs
-    const apiType = normalizedType === 'stocks' ? 'stock' : 
-                   normalizedType === 'metals' ? 'metal' : 
-                   normalizedType;
+    investmentType = investmentType === 'stocks' ? 'stock' : 
+                    investmentType === 'metals' ? 'metal' : 
+                    investmentType;
     
-    console.log("Normalized investment type for API:", apiType);
-    
-    // Set the correct color theme based on investment type
-    document.body.classList.add(`investment-type-${apiType}`);
+    console.log("Investment type from URL:", investmentType);
     
     // Color mapping for investment types
     const colorMap = {
@@ -41,12 +31,14 @@ document.addEventListener("DOMContentLoaded", function() {
         'stock': 'Акции',
         'metal': 'Метали'
     };
+
+    // Add class for styling based on investment type
+    document.body.classList.add(`investment-type-${investmentType}`);
     
-    // Modal elements
+    // Modal and form elements
     const modal = document.getElementById('investmentModal');
     const confirmDialog = document.getElementById('confirmDialog');
     const newInvestmentBtn = document.getElementById('newInvestmentBtn');
-    const modalTitle = document.getElementById('modal-title');
     const cancelBtn = document.getElementById('cancelInvestment');
     const closeModalBtns = document.querySelectorAll('.close-modal');
     const deleteBtn = document.getElementById('deleteInvestment');
@@ -60,16 +52,17 @@ document.addEventListener("DOMContentLoaded", function() {
     // Current investment ID for edit/delete operations
     let currentInvestmentId = null;
     
-    // Investment history chart setup
-    let historyChart = null;
-    setupHistoryChart();
+    // Setup investment history chart
+    const historyChart = setupHistoryChart();
     
-    // Load investments data
+    // Load investment data
     loadInvestments();
     
-    // Event listeners for modal
+    // Event listeners for modal controls
     if (newInvestmentBtn) {
-        newInvestmentBtn.addEventListener('click', openAddModal);
+        newInvestmentBtn.addEventListener('click', function() {
+            openAddModal();
+        });
     }
     
     if (cancelBtn) {
@@ -80,11 +73,9 @@ document.addEventListener("DOMContentLoaded", function() {
         deleteBtn.addEventListener('click', confirmDelete);
     }
     
-    // Close modal when clicking on close button or outside
+    // Close modal when clicking on X or outside
     closeModalBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            closeModal();
-        });
+        btn.addEventListener('click', closeModal);
     });
     
     window.addEventListener('click', function(event) {
@@ -95,7 +86,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
     
-    // Close confirm dialog
+    // Close confirm dialog on cancel
     if (cancelActionBtn) {
         cancelActionBtn.addEventListener('click', closeConfirmDialog);
     }
@@ -111,30 +102,19 @@ document.addEventListener("DOMContentLoaded", function() {
         input.valueAsDate = new Date();
     });
     
-    // Initialize insights section
-    updateInsights();
-    
     /**
-     * Load investments from server based on investment type
+     * Load investment data from API
      */
     function loadInvestments() {
-        let apiEndpoint = '';
+        console.log("Loading investments for type:", investmentType);
         
-        console.log("Loading investments for type:", apiType);
-        
-        // Select the appropriate API endpoint based on investment type
-        if (apiType === 'bank') {
-            apiEndpoint = '/api/bank-investments';
-        } else {
-            apiEndpoint = `/api/investments/type/${apiType}`;
-        }
-        
-        console.log("Using API endpoint:", apiEndpoint);
+        // API endpoint for getting investment data
+        const apiEndpoint = `/investments/api/${investmentType}`;
         
         // Show loading state
         showLoading();
         
-        // Fetch data from API
+        // Fetch data from the API
         fetch(apiEndpoint, {
             method: 'GET',
             headers: {
@@ -143,381 +123,62 @@ document.addEventListener("DOMContentLoaded", function() {
             credentials: 'same-origin'
         })
         .then(response => {
-            console.log("Response status:", response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            // Hide loading
+            // Hide loading indicator
             hideLoading();
             
-            // Check if we have valid data
             if (!data.success) {
                 throw new Error(data.message || 'Error loading investments');
             }
             
-            // Process investments
-            const investments = data.investments || data.data || [];
-            console.log("Loaded investments:", investments.length);
-            renderInvestments(investments);
-            updateSummary(investments);
-            updateHistoryChart(investments);
-            updateInsights(investments);
+            console.log("Received investment data:", data);
+            
+            // Update the UI with the data
+            renderInvestmentsTable(data.investments);
+            updateSummaryCards(data.summary);
+            updateHistoryChart(data.investments);
+            generateInsights(data.investments);
         })
         .catch(error => {
             hideLoading();
-            console.error('Error loading investments:', error);
-            Notify.error('Грешка', 'Неуспешно зареждане на инвестиции: ' + error.message);
+            console.error("Error loading investments:", error);
             
-            // Show no data message in the table
-            const tableBody = document.getElementById('investments-table-body');
-            if (tableBody) {
-                tableBody.innerHTML = `
-                    <tr class="no-data-row">
-                        <td colspan="6">Грешка при зареждане на данни. ${error.message}</td>
-                    </tr>
-                `;
+            // Show error notification
+            if (window.Notify) {
+                Notify.error("Грешка", `Грешка при зареждане на инвестиции: ${error.message}`);
+            } else {
+                alert(`Грешка при зареждане на инвестиции: ${error.message}`);
             }
-        });
-    }
-    
-    /**
-     * Show loading indicator in the table
-     */
-    function showLoading() {
-        if (!tableBody) return;
-        
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="6" class="loading-row">
-                    <div style="display: flex; justify-content: center; align-items: center; padding: 2rem; flex-direction: column;">
-                        <div class="loading-spinner" style="width: 40px; height: 40px; border: 3px solid #333; border-top: 3px solid ${themeColor}; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                        <p style="margin-top: 1rem; color: #ccc;">Зареждане на инвестиции...</p>
-                    </div>
-                </td>
-            </tr>
-        `;
-        
-        // Add keyframes for the spinner if not already added
-        if (!document.getElementById('spin-animation')) {
-            const style = document.createElement('style');
-            style.id = 'spin-animation';
-            style.innerHTML = `
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-    }
-    
-    /**
-     * Hide loading indicator
-     */
-    function hideLoading() {
-        // Nothing to do if already hidden
-    }
-    
-    /**
-     * Render empty state when no investments are found
-     */
-    function renderEmptyState() {
-        if (!tableBody) return;
-        
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="6" class="no-data-row">
-                    <div style="text-align: center; padding: 2rem;">
-                        <p>Няма намерени инвестиции. Добавете нова инвестиция, за да започнете.</p>
-                    </div>
-                </td>
-            </tr>
-        `;
-        
-        // Reset summary cards
-        updateSummaryCards([]);
-        
-        // Reset chart
-        updateHistoryChart([]);
-        
-        // Reset insights
-        generateInsights([]);
-    }
-    
-    /**
-     * Render investments table with the provided data
-     */
-    function renderInvestmentsTable(investments) {
-        if (!tableBody) return;
-        
-        // Clear table first
-        tableBody.innerHTML = '';
-        
-        // Check if we have any investments
-        if (!investments || investments.length === 0) {
+            
+            // Show no data message
             renderEmptyState();
-            return;
-        }
-        
-        // Render each investment as a table row
-        investments.forEach(investment => {
-            // Create table row
-            const row = document.createElement('tr');
-            row.dataset.id = investment.id;
-            
-            // Calculate profit/loss
-            let initialValue, currentValue, profit, profitPercentage;
-            
-            if (apiInvestmentType === 'bank') {
-                initialValue = parseFloat(investment.quantity || investment.amount);
-                currentValue = parseFloat(investment.current_value || initialValue);
-            } else {
-                initialValue = parseFloat(investment.quantity) * parseFloat(investment.purchase_price);
-                currentValue = parseFloat(investment.current_value || initialValue);
-            }
-            
-            profit = currentValue - initialValue;
-            profitPercentage = initialValue > 0 ? (profit / initialValue) * 100 : 0;
-            const isProfitPositive = profit >= 0;
-            
-            // Format display values
-            const profitDisplay = `${isProfitPositive ? '+' : ''}${formatCurrency(profit)} (${isProfitPositive ? '+' : ''}${profitPercentage.toFixed(2)}%)`;
-            
-            // Create row HTML based on investment type
-            if (apiInvestmentType === 'bank') {
-                row.innerHTML = `
-                    <td>${investment.currency} Депозит</td>
-                    <td>${formatCurrency(investment.quantity || investment.amount)} ${investment.currency}</td>
-                    <td>${investment.interest_rate}% (${getInterestTypeDisplay(investment.interest_type)})</td>
-                    <td>${formatCurrency(currentValue)} ${investment.currency}</td>
-                    <td class="${isProfitPositive ? 'positive' : 'negative'}">${profitDisplay}</td>
-                    <td>
-                        <div class="table-actions">
-                            <button class="action-btn edit" data-id="${investment.id}">Редактирай</button>
-                            <button class="action-btn delete" data-id="${investment.id}">Изтрий</button>
-                        </div>
-                    </td>
-                `;
-            } else {
-                row.innerHTML = `
-                    <td>${investment.symbol}</td>
-                    <td>${formatQuantity(investment.quantity)} ${investment.symbol}</td>
-                    <td>${formatCurrency(investment.purchase_price)} ${investment.currency || 'BGN'}</td>
-                    <td>${formatCurrency(currentValue)} ${investment.currency || 'BGN'}</td>
-                    <td class="${isProfitPositive ? 'positive' : 'negative'}">${profitDisplay}</td>
-                    <td>
-                        <div class="table-actions">
-                            <button class="action-btn edit" data-id="${investment.id}">Редактирай</button>
-                            <button class="action-btn delete" data-id="${investment.id}">Изтрий</button>
-                        </div>
-                    </td>
-                `;
-            }
-            
-            tableBody.appendChild(row);
-        });
-        
-        // Add event listeners to the new buttons
-        addTableButtonListeners();
-    }
-    
-    /**
-     * Add event listeners to table action buttons
-     */
-    function addTableButtonListeners() {
-        // Edit buttons
-        document.querySelectorAll('.action-btn.edit').forEach(button => {
-            button.addEventListener('click', function() {
-                const investmentId = this.getAttribute('data-id');
-                openEditModal(investmentId);
-            });
-        });
-        
-        // Delete buttons
-        document.querySelectorAll('.action-btn.delete').forEach(button => {
-            button.addEventListener('click', function() {
-                const investmentId = this.getAttribute('data-id');
-                currentInvestmentId = investmentId;
-                openConfirmDialog('Изтриване на инвестиция', 'Сигурни ли сте, че искате да изтриете тази инвестиция?');
-            });
         });
     }
     
     /**
-     * Render investments in the table
-     */
-    function renderInvestments(investments) {
-        const tableBody = document.getElementById('investments-table-body');
-        if (!tableBody) return;
-        
-        // Clear existing content
-        tableBody.innerHTML = '';
-        
-        // Check if we have investments
-        if (!investments || investments.length === 0) {
-            const noDataRow = document.createElement('tr');
-            noDataRow.className = 'no-data-row';
-            noDataRow.innerHTML = `<td colspan="6">Няма инвестиции от този тип. Добавете нова инвестиция, за да започнете.</td>`;
-            tableBody.appendChild(noDataRow);
-            return;
-        }
-        
-        // Render each investment
-        investments.forEach(investment => {
-            const row = document.createElement('tr');
-            row.dataset.id = investment.id;
-            
-            // Calculate profit values for display
-            const profit = (investment.current_value || 0) - (investment.investment_type === 'bank' ? investment.quantity : (investment.quantity * investment.purchase_price));
-            const profitPercentage = investment.profit_percentage || 0;
-            const isProfitPositive = profit >= 0;
-            
-            // Format display values
-            const profitDisplay = `${isProfitPositive ? '+' : ''}${formatCurrency(profit)} (${isProfitPositive ? '+' : ''}${profitPercentage.toFixed(2)}%)`;
-            
-            // Create table row based on investment type
-            if (investment.investment_type === 'bank') {
-                row.innerHTML = `
-                    <td>${investment.currency} Депозит</td>
-                    <td>${formatCurrency(investment.quantity)} ${investment.currency}</td>
-                    <td>${investment.interest_rate}% (${getInterestTypeDisplay(investment.interest_type)})</td>
-                    <td>${formatCurrency(investment.current_value)} ${investment.currency}</td>
-                    <td class="investment-value ${isProfitPositive ? 'positive' : 'negative'}">${profitDisplay}</td>
-                    <td>
-                        <div class="table-actions">
-                            <button class="action-btn edit" data-id="${investment.id}">
-                                <i class="fas fa-edit"></i> Редактирай
-                            </button>
-                            <button class="action-btn delete" data-id="${investment.id}">
-                                <i class="fas fa-trash"></i> Изтрий
-                            </button>
-                        </div>
-                    </td>
-                `;
-            } else {
-                row.innerHTML = `
-                    <td>${investment.symbol}</td>
-                    <td>${formatQuantity(investment.quantity)} ${investment.symbol}</td>
-                    <td>${formatCurrency(investment.purchase_price)} ${investment.currency}</td>
-                    <td>${formatCurrency(investment.current_value)} ${investment.currency}</td>
-                    <td class="investment-value ${isProfitPositive ? 'positive' : 'negative'}">${profitDisplay}</td>
-                    <td>
-                        <div class="table-actions">
-                            <button class="action-btn edit" data-id="${investment.id}">
-                                <i class="fas fa-edit"></i> Редактирай
-                            </button>
-                            <button class="action-btn delete" data-id="${investment.id}">
-                                <i class="fas fa-trash"></i> Изтрий
-                            </button>
-                        </div>
-                    </td>
-                `;
-            }
-            
-            tableBody.appendChild(row);
-        });
-        
-        // Add event listeners to edit/delete buttons
-        addTableActionListeners();
-    }
-    
-    /**
-     * Add event listeners to table action buttons
-     */
-    function addTableActionListeners() {
-        // Edit buttons
-        const editButtons = document.querySelectorAll('.action-btn.edit');
-        editButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const investmentId = this.dataset.id;
-                openEditModal(investmentId);
-            });
-        });
-        
-        // Delete buttons
-        const deleteButtons = document.querySelectorAll('.action-btn.delete');
-        deleteButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const investmentId = this.dataset.id;
-                currentInvestmentId = investmentId;
-                openConfirmDialog('Изтриване на инвестиция', 'Сигурни ли сте, че искате да изтриете тази инвестиция?');
-            });
-        });
-    }
-    
-    /**
-     * Update the summary cards with investment data
-     */
-    function updateSummary(investments) {
-        // Calculate total values
-        let totalCurrentValue = 0;
-        let totalInitialValue = 0;
-        let totalProfit = 0;
-        
-        investments.forEach(investment => {
-            // Current value
-            if (investment.current_value) {
-                totalCurrentValue += parseFloat(investment.current_value);
-            }
-            
-            // Initial value
-            if (investment.investment_type === 'bank') {
-                totalInitialValue += parseFloat(investment.quantity);
-            } else {
-                totalInitialValue += parseFloat(investment.quantity) * parseFloat(investment.purchase_price);
-            }
-        });
-        
-        // Calculate profit
-        totalProfit = totalCurrentValue - totalInitialValue;
-        const profitPercentage = totalInitialValue > 0 ? (totalProfit / totalInitialValue) * 100 : 0;
-        
-        // Update summary cards
-        const totalValueEl = document.getElementById('total-investment-value');
-        if (totalValueEl) {
-            totalValueEl.textContent = `${formatCurrency(totalCurrentValue)} лв.`;
-        }
-        
-        const totalChangeElement = document.getElementById('total-investment-change');
-        if (totalChangeElement) {
-            totalChangeElement.textContent = `${profitPercentage >= 0 ? '+' : ''}${profitPercentage.toFixed(2)}% от първоначалната инвестиция`;
-            totalChangeElement.className = `change ${profitPercentage >= 0 ? 'positive' : 'negative'}`;
-        }
-        
-        const totalProfitEl = document.getElementById('total-investment-profit');
-        if (totalProfitEl) {
-            totalProfitEl.textContent = `${formatCurrency(totalProfit)} лв.`;
-        }
-        
-        const profitPercentageElement = document.getElementById('profit-percentage');
-        if (profitPercentageElement) {
-            profitPercentageElement.textContent = `${profitPercentage >= 0 ? '+' : ''}${profitPercentage.toFixed(2)}%`;
-            profitPercentageElement.className = `change ${profitPercentage >= 0 ? 'positive' : 'negative'}`;
-        }
-    }
-    
-    /**
-     * Setup and update the history chart
+     * Setup the investment history chart
      */
     function setupHistoryChart() {
-        const chartEl = document.getElementById('investment-history-chart');
-        if (!chartEl) return;
+        const chartCanvas = document.getElementById('investment-history-chart');
+        if (!chartCanvas) return null;
         
-        const ctx = chartEl.getContext('2d');
+        const ctx = chartCanvas.getContext('2d');
         
-        // Create empty chart initially
-        historyChart = new Chart(ctx, {
+        // Create chart
+        return new Chart(ctx, {
             type: 'line',
             data: {
                 labels: [],
                 datasets: [{
-                    label: displayNames[apiType] || 'Инвестиции',
+                    label: displayNames[investmentType] || 'Инвестиции',
                     data: [],
-                    borderColor: colorMap[apiType] || '#6dc0e0',
-                    backgroundColor: `${colorMap[apiType]}20` || '#6dc0e020',
+                    borderColor: colorMap[investmentType] || '#6dc0e0',
+                    backgroundColor: `${colorMap[investmentType]}20` || '#6dc0e020',
                     fill: true,
                     tension: 0.4,
                     pointRadius: 4,
@@ -577,13 +238,12 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
     }
-
     
     /**
      * Update the history chart with investment data
      */
     function updateHistoryChart(investments) {
-        if (!historyChart) return;
+        if (!historyChart || !investments || investments.length === 0) return;
         
         // Generate monthly data points for the last 6 months
         const labels = [];
@@ -594,9 +254,7 @@ document.addEventListener("DOMContentLoaded", function() {
         for (let i = 5; i >= 0; i--) {
             const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
             labels.push(date.toLocaleDateString('bg-BG', { month: 'short', year: 'numeric' }));
-            
-            // Initialize with zero
-            dataPoints.push(0);
+            dataPoints.push(0); // Initialize with zero
         }
         
         // Populate data points based on investments
@@ -609,49 +267,60 @@ document.addEventListener("DOMContentLoaded", function() {
                 // Skip if investment was made after this month
                 if (purchaseDate > monthDate) continue;
                 
-                // Calculate value based on investment type
-                if (apiInvestmentType === 'bank') {
-                    // Calculate bank deposit value with interest
-                    const initialValue = parseFloat(investment.quantity || investment.amount);
+                // Calculate value based on investment type and month
+                let valueAtPoint = 0;
+                
+                if (investment.investment_type === 'bank') {
+                    // For bank investments
+                    const initialValue = parseFloat(investment.quantity);
                     const interestRate = parseFloat(investment.interest_rate) / 100;
                     const monthsHeld = monthsBetween(purchaseDate, monthDate);
                     
-                    let value = initialValue;
-                    
                     // Apply interest based on type
+                    let interestMultiplier = 1;
                     switch(investment.interest_type) {
                         case 'daily':
-                            value *= (1 + (interestRate * (monthsHeld * 30) / 365));
+                            interestMultiplier = 1 + (interestRate * (monthsHeld * 30) / 365);
                             break;
                         case 'monthly_1':
-                            value *= (1 + (interestRate * monthsHeld / 12));
+                            interestMultiplier = 1 + (interestRate * monthsHeld / 12);
                             break;
                         case 'monthly_3':
-                            value *= (1 + (interestRate * Math.floor(monthsHeld / 3) / 4));
+                            interestMultiplier = 1 + (interestRate * Math.floor(monthsHeld / 3) / 4);
                             break;
                         case 'monthly_6':
-                            value *= (1 + (interestRate * Math.floor(monthsHeld / 6) / 2));
+                            interestMultiplier = 1 + (interestRate * Math.floor(monthsHeld / 6) / 2);
                             break;
                         case 'yearly':
                         default:
-                            value *= (1 + (interestRate * Math.floor(monthsHeld / 12)));
+                            interestMultiplier = 1 + (interestRate * Math.floor(monthsHeld / 12));
                             break;
                     }
                     
-                    dataPoints[i] += value;
+                    valueAtPoint = initialValue * interestMultiplier;
                 } else {
-                    // For other investments, estimate based on current value
+                    // For other investments, estimate growth over time
                     const initialValue = parseFloat(investment.quantity) * parseFloat(investment.purchase_price);
-                    const currentValue = parseFloat(investment.current_value || initialValue);
+                    const currentValue = parseFloat(investment.current_value) || initialValue;
                     
-                    // Linear growth estimation between purchase and now
-                    const totalMonths = monthsBetween(purchaseDate, today);
-                    const growthPerMonth = totalMonths > 0 ? (currentValue - initialValue) / totalMonths : 0;
-                    const monthsFromPurchase = monthsBetween(purchaseDate, monthDate);
+                    // Calculate percentage between purchase date and today
+                    const totalDuration = today - purchaseDate;
+                    const pointDuration = monthDate - purchaseDate;
+                    const progressPercentage = totalDuration > 0 ? pointDuration / totalDuration : 0;
                     
-                    const estimatedValue = initialValue + (growthPerMonth * monthsFromPurchase);
-                    dataPoints[i] += estimatedValue;
+                    // Linear interpolation between initial and current value
+                    valueAtPoint = initialValue + (progressPercentage * (currentValue - initialValue));
                 }
+                
+                // Apply currency conversion if needed
+                const currency = investment.currency || 'BGN';
+                if (currency !== 'BGN') {
+                    // This is a simplification - ideally you'd use the exchange rate for that specific month
+                    const exchangeRate = getExchangeRate(currency);
+                    valueAtPoint *= exchangeRate;
+                }
+                
+                dataPoints[i] += valueAtPoint;
             }
         });
         
@@ -662,68 +331,285 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     /**
+     * Parse month label (e.g., "янв. 2023") to Date object
+     */
+    function parseMonthLabel(monthLabel) {
+        // Get month number and year from the label
+        const parts = monthLabel.split(' ');
+        const month = getMonthNumber(parts[0]);
+        const year = parseInt(parts[1]);
+        
+        return new Date(year, month, 1);
+    }
+    
+    /**
+     * Get month number from Bulgarian month name
+     */
+    function getMonthNumber(monthShort) {
+        const monthMap = {
+            'яну': 0, 'фев': 1, 'мар': 2, 'апр': 3, 'май': 4, 'юни': 5,
+            'юли': 6, 'авг': 7, 'сеп': 8, 'окт': 9, 'ное': 10, 'дек': 11
+        };
+        
+        // Clean up the month name
+        const cleanMonth = monthShort.replace('.', '').toLowerCase();
+        
+        // Find matching month
+        for (const key in monthMap) {
+            if (cleanMonth.startsWith(key)) {
+                return monthMap[key];
+            }
+        }
+        
+        return 0; // Default to January if not found
+    }
+    
+    /**
+     * Calculate months between two dates
+     */
+    function monthsBetween(date1, date2) {
+        const yearDiff = date2.getFullYear() - date1.getFullYear();
+        const monthDiff = date2.getMonth() - date1.getMonth();
+        return yearDiff * 12 + monthDiff;
+    }
+    
+    /**
+     * Get exchange rate for currency
+     * Note: This is a simplified function - in practice, you'd fetch this from an API or database
+     */
+    function getExchangeRate(currency) {
+        const rates = {
+            'BGN': 1,
+            'USD': 1.79,
+            'EUR': 1.96,
+            'GBP': 2.30
+        };
+        
+        return rates[currency] || 1;
+    }
+    
+    /**
+     * Render the investments table
+     */
+    function renderInvestmentsTable(investments) {
+        const tableBody = document.getElementById('investments-table-body');
+        if (!tableBody) return;
+        
+        // Clear existing rows
+        tableBody.innerHTML = '';
+        
+        // If no investments, show empty state
+        if (!investments || investments.length === 0) {
+            renderEmptyState();
+            return;
+        }
+        
+        // Render each investment
+        investments.forEach(investment => {
+            const row = document.createElement('tr');
+            row.dataset.id = investment.id;
+            
+            // Calculate profit values for display
+            const profit = investment.profit || 0;
+            const profitPercentage = investment.profit_percentage || 0;
+            const isProfitPositive = profit >= 0;
+            
+            // Format display values based on investment type
+            let displayName, displayQuantity, displayPrice, displayValue, profitDisplay;
+            
+            if (investment.investment_type === 'bank') {
+                // Bank deposit
+                displayName = `${investment.currency} Депозит`;
+                displayQuantity = `${formatCurrency(investment.quantity)} ${investment.currency}`;
+                displayPrice = `${investment.interest_rate}% (${getInterestTypeDisplay(investment.interest_type)})`;
+                displayValue = `${formatCurrency(investment.current_value)} ${investment.currency}`;
+                profitDisplay = `${isProfitPositive ? '+' : ''}${formatCurrency(profit)} (${isProfitPositive ? '+' : ''}${profitPercentage.toFixed(2)}%)`;
+            } else {
+                // Other investments
+                displayName = investment.symbol;
+                displayQuantity = `${formatQuantity(investment.quantity)}`;
+                displayPrice = `${formatCurrency(investment.purchase_price)} ${investment.currency}`;
+                displayValue = `${formatCurrency(investment.current_value)} ${investment.currency}`;
+                profitDisplay = `${isProfitPositive ? '+' : ''}${formatCurrency(profit)} (${isProfitPositive ? '+' : ''}${profitPercentage.toFixed(2)}%)`;
+            }
+            
+            // Create table row
+            row.innerHTML = `
+                <td>${displayName}</td>
+                <td>${displayQuantity}</td>
+                <td>${displayPrice}</td>
+                <td>${displayValue}</td>
+                <td class="investment-value ${isProfitPositive ? 'positive' : 'negative'}">${profitDisplay}</td>
+                <td>
+                    <div class="table-actions">
+                        <button class="action-btn edit" data-id="${investment.id}">
+                            Редактирай
+                        </button>
+                        <button class="action-btn delete" data-id="${investment.id}">
+                            Изтрий
+                        </button>
+                    </div>
+                </td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+        
+        // Add event listeners to the buttons
+        addTableActionListeners();
+    }
+    
+    /**
+     * Add event listeners to table buttons
+     */
+    function addTableActionListeners() {
+        // Edit buttons
+        document.querySelectorAll('.action-btn.edit').forEach(button => {
+            button.addEventListener('click', function() {
+                const investmentId = this.dataset.id;
+                openEditModal(investmentId);
+            });
+        });
+        
+        // Delete buttons
+        document.querySelectorAll('.action-btn.delete').forEach(button => {
+            button.addEventListener('click', function() {
+                const investmentId = this.dataset.id;
+                currentInvestmentId = investmentId;
+                openConfirmDialog('Изтриване на инвестиция', 'Сигурни ли сте, че искате да изтриете тази инвестиция?');
+            });
+        });
+    }
+    
+    /**
+     * Render empty state when no investments
+     */
+    function renderEmptyState() {
+        const tableBody = document.getElementById('investments-table-body');
+        if (!tableBody) return;
+        
+        tableBody.innerHTML = `
+            <tr class="no-data-row">
+                <td colspan="6">
+                    <div style="text-align: center; padding: 2rem;">
+                        <p>Няма намерени инвестиции. Добавете нова инвестиция, за да започнете.</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        
+        // Reset summary cards
+        updateSummaryCards({
+            totalInvestment: 0,
+            totalCurrentValue: 0,
+            totalProfit: 0,
+            profitPercentage: 0
+        });
+        
+        // Clear insights
+        const insightsContainer = document.getElementById('investment-insights');
+        if (insightsContainer) {
+            insightsContainer.innerHTML = '<h2>Анализ на инвестициите</h2>';
+            insightsContainer.innerHTML += '<p>Добавете инвестиции, за да видите анализ.</p>';
+        }
+    }
+    
+    /**
+     * Update summary cards with data
+     */
+    function updateSummaryCards(summary) {
+        if (!summary) return;
+        
+        // Update total value
+        const totalValueElement = document.getElementById('total-investment-value');
+        if (totalValueElement) {
+            totalValueElement.textContent = `${formatCurrency(summary.totalCurrentValue)} лв.`;
+        }
+        
+        // Update profit/loss value
+        const totalProfitElement = document.getElementById('total-investment-profit');
+        if (totalProfitElement) {
+            totalProfitElement.textContent = `${formatCurrency(summary.totalProfit)} лв.`;
+        }
+        
+        // Update change percentage
+        const changeElement = document.getElementById('total-investment-change');
+        if (changeElement) {
+            const changeText = `${summary.profitPercentage >= 0 ? '+' : ''}${summary.profitPercentage.toFixed(2)}% от първоначалната инвестиция`;
+            changeElement.textContent = changeText;
+            changeElement.className = `change ${summary.profitPercentage >= 0 ? 'positive' : 'negative'}`;
+        }
+        
+        // Update profit percentage
+        const profitPercentageElement = document.getElementById('profit-percentage');
+        if (profitPercentageElement) {
+            const percentageText = `${summary.profitPercentage >= 0 ? '+' : ''}${summary.profitPercentage.toFixed(2)}%`;
+            profitPercentageElement.textContent = percentageText;
+            profitPercentageElement.className = `change ${summary.profitPercentage >= 0 ? 'positive' : 'negative'}`;
+        }
+    }
+    
+    /**
      * Generate insights based on investment data
      */
     function generateInsights(investments) {
         const insightsContainer = document.getElementById('investment-insights');
         if (!insightsContainer) return;
         
-        // Reset insights container
+        // Reset container
         insightsContainer.innerHTML = '<h2>Анализ на инвестициите</h2>';
         
-        // If no investments, show default message
+        // If no investments, show message
         if (!investments || investments.length === 0) {
-            const noInsightsMsg = document.createElement('div');
-            noInsightsMsg.className = 'insight-card';
-            noInsightsMsg.innerHTML = `
-                <p class="insight-description">Добавете инвестиции, за да видите анализ и препоръки.</p>
-            `;
-            insightsContainer.appendChild(noInsightsMsg);
+            const noDataMsg = document.createElement('p');
+            noDataMsg.textContent = 'Добавете инвестиции, за да видите анализ.';
+            insightsContainer.appendChild(noDataMsg);
             return;
         }
         
         // Generate insights based on investment type
-        if (apiInvestmentType === 'bank') {
+        if (investmentType === 'bank') {
             generateBankInsights(investments, insightsContainer);
-        } else if (apiInvestmentType === 'crypto') {
+        } else if (investmentType === 'crypto') {
             generateCryptoInsights(investments, insightsContainer);
-        } else if (apiInvestmentType === 'stock') {
+        } else if (investmentType === 'stock') {
             generateStockInsights(investments, insightsContainer);
-        } else if (apiInvestmentType === 'metal') {
+        } else if (investmentType === 'metal') {
             generateMetalInsights(investments, insightsContainer);
         }
     }
     
     /**
-     * Generate insights for bank investments
+     * Generate bank investment insights
      */
     function generateBankInsights(investments, container) {
         // Calculate average interest rate
         let totalInterestRate = 0;
         investments.forEach(inv => {
-            totalInterestRate += parseFloat(inv.interest_rate);
+            totalInterestRate += parseFloat(inv.interest_rate || 0);
         });
         const avgInterestRate = totalInterestRate / investments.length;
         
-        // Average interest rate insight
-        const avgRateInsight = document.createElement('div');
-        avgRateInsight.className = 'insight-card';
-        avgRateInsight.innerHTML = `
+        // Add insight card for average interest rate
+        const rateInsight = document.createElement('div');
+        rateInsight.className = 'insight-card';
+        rateInsight.innerHTML = `
             <h3 class="insight-title">Среден лихвен процент</h3>
             <p class="insight-description">
                 Средният лихвен процент на вашите депозити е ${avgInterestRate.toFixed(2)}%.
                 ${avgInterestRate < 3 ? 'Можете да потърсите банки, които предлагат по-високи лихви.' : 'Вашите депозити имат добра лихвена доходност.'}
             </p>
         `;
-        container.appendChild(avgRateInsight);
+        container.appendChild(rateInsight);
         
-        // Currency diversification insight
+        // Add insight for currency diversification
         const currencies = {};
         investments.forEach(inv => {
-            if (!currencies[inv.currency]) {
-                currencies[inv.currency] = 0;
+            const currency = inv.currency || 'BGN';
+            if (!currencies[currency]) {
+                currencies[currency] = 0;
             }
-            currencies[inv.currency] += parseFloat(inv.quantity || inv.amount);
+            currencies[currency] += parseFloat(inv.quantity || 0);
         });
         
         const currencyInsight = document.createElement('div');
@@ -731,7 +617,7 @@ document.addEventListener("DOMContentLoaded", function() {
         currencyInsight.innerHTML = `
             <h3 class="insight-title">Валутна диверсификация</h3>
             <p class="insight-description">
-                Вашите депозити са разпределени в ${Object.keys(currencies).length} валути.
+                Вашите депозити са разпределени в ${Object.keys(currencies).length} ${Object.keys(currencies).length === 1 ? 'валута' : 'валути'}.
                 ${Object.keys(currencies).length < 2 ? 'Можете да помислите за диверсификация в повече валути, за да намалите валутния риск.' : 'Добра диверсификация на валутите.'}
             </p>
         `;
@@ -739,24 +625,24 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     /**
-     * Generate insights for crypto investments
+     * Generate crypto investment insights
      */
     function generateCryptoInsights(investments, container) {
-        // Check if portfolio is diversified
-        const cryptoTypes = new Set(investments.map(inv => inv.symbol));
+        // Check portfolio diversification
+        const symbols = new Set(investments.map(inv => inv.symbol));
         
         const diversificationInsight = document.createElement('div');
         diversificationInsight.className = 'insight-card';
         diversificationInsight.innerHTML = `
             <h3 class="insight-title">Диверсификация</h3>
             <p class="insight-description">
-                Вашето крипто портфолио съдържа ${cryptoTypes.size} различни криптовалути.
-                ${cryptoTypes.size < 3 ? 'Препоръчваме по-голяма диверсификация за намаляване на риска.' : 'Добра диверсификация на портфолиото.'}
+                Вашето крипто портфолио съдържа ${symbols.size} различни криптовалути.
+                ${symbols.size < 3 ? 'Препоръчваме по-голяма диверсификация за намаляване на риска.' : 'Добра диверсификация на портфолиото.'}
             </p>
         `;
         container.appendChild(diversificationInsight);
         
-        // Volatility insight
+        // Add volatility insight
         const volatilityInsight = document.createElement('div');
         volatilityInsight.className = 'insight-card';
         volatilityInsight.innerHTML = `
@@ -769,7 +655,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     /**
-     * Generate insights for stock investments
+     * Generate stock investment insights
      */
     function generateStockInsights(investments, container) {
         // Calculate performance
@@ -779,10 +665,7 @@ document.addEventListener("DOMContentLoaded", function() {
         investments.forEach(inv => {
             const initialValue = parseFloat(inv.quantity) * parseFloat(inv.purchase_price);
             totalInvestment += initialValue;
-            
-            if (inv.current_value) {
-                totalProfit += parseFloat(inv.current_value) - initialValue;
-            }
+            totalProfit += parseFloat(inv.profit || 0);
         });
         
         const profitPercentage = totalInvestment > 0 ? (totalProfit / totalInvestment) * 100 : 0;
@@ -798,7 +681,7 @@ document.addEventListener("DOMContentLoaded", function() {
         `;
         container.appendChild(performanceInsight);
         
-        // Sector diversification insight
+        // Add sector diversification recommendation
         const diversificationInsight = document.createElement('div');
         diversificationInsight.className = 'insight-card';
         diversificationInsight.innerHTML = `
@@ -811,10 +694,10 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     /**
-     * Generate insights for metal investments
+     * Generate metal investment insights
      */
     function generateMetalInsights(investments, container) {
-        // Inflation hedge insight
+        // Add inflation hedge insight
         const inflationInsight = document.createElement('div');
         inflationInsight.className = 'insight-card';
         inflationInsight.innerHTML = `
@@ -825,7 +708,7 @@ document.addEventListener("DOMContentLoaded", function() {
         `;
         container.appendChild(inflationInsight);
         
-        // Portfolio allocation insight
+        // Add allocation recommendation
         const allocationInsight = document.createElement('div');
         allocationInsight.className = 'insight-card';
         allocationInsight.innerHTML = `
@@ -846,23 +729,23 @@ document.addEventListener("DOMContentLoaded", function() {
         // Reset form
         if (form) form.reset();
         
-        // Set modal title
+        // Update modal title
         const modalTitle = document.getElementById('modal-title');
         if (modalTitle) modalTitle.textContent = 'Добави нова инвестиция';
         
-        // Hide delete button for new investments
+        // Hide delete button 
         if (deleteBtn) deleteBtn.style.display = 'none';
         
-        // Show the modal
-        modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden'; // Prevent scrolling
+        // Reset current investment ID
+        currentInvestmentId = null;
         
         // Set default date to today
         const dateInput = document.getElementById('investmentDate');
         if (dateInput) dateInput.valueAsDate = new Date();
         
-        // Reset current investment ID
-        currentInvestmentId = null;
+        // Show modal
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden'; // Prevent scrolling
     }
     
     /**
@@ -871,29 +754,25 @@ document.addEventListener("DOMContentLoaded", function() {
     function openEditModal(investmentId) {
         if (!modal || !investmentId) return;
         
-        console.log(`Opening edit modal for investment ID: ${investmentId}`);
+        console.log("Opening edit modal for investment ID:", investmentId);
         
-        // Set current investment ID
+        // Store current investment ID
         currentInvestmentId = investmentId;
         
-        // Set modal title
+        // Update modal title
         const modalTitle = document.getElementById('modal-title');
         if (modalTitle) modalTitle.textContent = 'Редактирай инвестиция';
         
-        // Show delete button for existing investments
+        // Show delete button
         if (deleteBtn) deleteBtn.style.display = 'block';
         
-        // Determine API endpoint based on investment type
+        // Choose the correct API endpoint based on investment type
         let apiEndpoint;
-        
-        if (apiInvestmentType === 'bank') {
+        if (investmentType === 'bank') {
             apiEndpoint = `/api/bank-investments/${investmentId}`;
         } else {
             apiEndpoint = `/api/investments/${investmentId}`;
         }
-        
-        // Show loading state
-        // (We could add a loading indicator to the modal)
         
         // Fetch investment data
         fetch(apiEndpoint, {
@@ -913,36 +792,37 @@ document.addEventListener("DOMContentLoaded", function() {
             // Extract investment data
             const investment = data.data || {};
             
-            console.log('Investment data for edit:', investment);
-            
-            // Set hidden investment ID
+            // Set hidden investment ID field
             const idInput = document.getElementById('investmentId');
             if (idInput) idInput.value = investmentId;
             
-            // Populate form fields based on investment type
-            if (apiInvestmentType === 'bank') {
+            // Populate form based on investment type
+            if (investmentType === 'bank') {
                 populateBankForm(investment);
             } else {
                 populateStandardForm(investment);
             }
             
-            // Show the modal
+            // Show modal
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden'; // Prevent scrolling
         })
         .catch(error => {
-            console.error('Error loading investment data:', error);
-            Notify.error('Грешка', `Неуспешно зареждане на данни: ${error.message}`);
+            console.error("Error fetching investment:", error);
+            
+            // Show error notification
+            if (window.Notify) {
+                Notify.error("Грешка", `Грешка при зареждане на инвестиция: ${error.message}`);
+            } else {
+                alert(`Грешка при зареждане на инвестиция: ${error.message}`);
+            }
         });
     }
     
     /**
-     * Populate form fields for bank investment
+     * Populate bank investment form
      */
     function populateBankForm(investment) {
-        // Basic validation
-        if (!investment) return;
-        
         // Currency
         const currencyInput = document.getElementById('depositCurrency');
         if (currencyInput) currencyInput.value = investment.currency || 'BGN';
@@ -962,9 +842,10 @@ document.addEventListener("DOMContentLoaded", function() {
         // Date
         const dateInput = document.getElementById('investmentDate');
         if (dateInput && investment.purchase_date) {
-            // Format date for input field (YYYY-MM-DD)
+            // Format date for input (YYYY-MM-DD)
             const date = new Date(investment.purchase_date);
-            dateInput.value = date.toISOString().split('T')[0];
+            const formattedDate = date.toISOString().split('T')[0];
+            dateInput.value = formattedDate;
         }
         
         // Notes
@@ -973,16 +854,13 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     /**
-     * Populate form fields for standard investment (crypto, stock, metal)
+     * Populate standard investment form
      */
     function populateStandardForm(investment) {
-        // Basic validation
-        if (!investment) return;
-        
         // Symbol
         const symbolInput = document.getElementById('investmentSymbol');
         if (symbolInput) {
-            // Check if the symbol exists in the dropdown
+            // Check if symbol exists in dropdown
             let symbolExists = false;
             for (let i = 0; i < symbolInput.options.length; i++) {
                 if (symbolInput.options[i].value === investment.symbol) {
@@ -995,8 +873,8 @@ document.addEventListener("DOMContentLoaded", function() {
             if (!symbolExists && investment.symbol) {
                 const option = document.createElement('option');
                 option.value = investment.symbol;
-                option.text = investment.symbol;
-                symbolInput.add(option);
+                option.textContent = investment.symbol;
+                symbolInput.appendChild(option);
             }
             
             symbolInput.value = investment.symbol;
@@ -1017,9 +895,10 @@ document.addEventListener("DOMContentLoaded", function() {
         // Date
         const dateInput = document.getElementById('investmentDate');
         if (dateInput && investment.purchase_date) {
-            // Format date for input field (YYYY-MM-DD)
+            // Format date for input (YYYY-MM-DD)
             const date = new Date(investment.purchase_date);
-            dateInput.value = date.toISOString().split('T')[0];
+            const formattedDate = date.toISOString().split('T')[0];
+            dateInput.value = formattedDate;
         }
         
         // Notes
@@ -1028,7 +907,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     /**
-     * Close the modal
+     * Close modal
      */
     function closeModal() {
         if (!modal) return;
@@ -1038,9 +917,6 @@ document.addEventListener("DOMContentLoaded", function() {
         
         // Reset form
         if (form) form.reset();
-        
-        // Reset current investment ID
-        currentInvestmentId = null;
     }
     
     /**
@@ -1050,19 +926,14 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!confirmDialog) return;
         
         // Set dialog content
-        const titleElement = confirmDialog.querySelector('.modal-header h2');
-        if (titleElement) titleElement.textContent = title;
-        
-        const messageElement = document.getElementById('confirmMessage');
-        if (messageElement) messageElement.textContent = message;
+        document.querySelector('#confirmDialog .modal-header h2').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
         
         // Set confirm action
-        if (confirmActionBtn) {
-            confirmActionBtn.onclick = function() {
-                closeConfirmDialog();
-                deleteInvestment(currentInvestmentId);
-            };
-        }
+        confirmActionBtn.onclick = function() {
+            closeConfirmDialog();
+            deleteInvestment(currentInvestmentId);
+        };
         
         // Show dialog
         confirmDialog.style.display = 'flex';
@@ -1083,10 +954,7 @@ document.addEventListener("DOMContentLoaded", function() {
      * Confirm delete operation
      */
     function confirmDelete() {
-        if (!currentInvestmentId) {
-            console.error('No investment ID set for delete operation');
-            return;
-        }
+        if (!currentInvestmentId) return;
         
         openConfirmDialog('Изтриване на инвестиция', 'Сигурни ли сте, че искате да изтриете тази инвестиция?');
     }
@@ -1095,21 +963,15 @@ document.addEventListener("DOMContentLoaded", function() {
      * Delete investment
      */
     function deleteInvestment(investmentId) {
-        if (!investmentId) {
-            console.error('No investment ID provided for delete');
-            return;
-        }
+        if (!investmentId) return;
         
-        // Determine API endpoint based on investment type
+        // Choose API endpoint based on investment type
         let apiEndpoint;
-        
-        if (apiInvestmentType === 'bank') {
+        if (investmentType === 'bank') {
             apiEndpoint = `/api/bank-investments/${investmentId}`;
         } else {
             apiEndpoint = `/api/investments/${investmentId}`;
         }
-        
-        console.log(`Deleting investment with ID ${investmentId} from ${apiEndpoint}`);
         
         // Send delete request
         fetch(apiEndpoint, {
@@ -1130,36 +992,44 @@ document.addEventListener("DOMContentLoaded", function() {
             closeModal();
             
             // Show success message
-            Notify.success('Успех', 'Инвестицията беше изтрита успешно!');
+            if (window.Notify) {
+                Notify.success("Успех", "Инвестицията беше изтрита успешно!");
+            } else {
+                alert("Инвестицията беше изтрита успешно!");
+            }
             
-            // Reload investments data
+            // Reload investments
             loadInvestments();
         })
         .catch(error => {
-            console.error('Error deleting investment:', error);
-            Notify.error('Грешка', `Неуспешно изтриване на инвестиция: ${error.message}`);
+            console.error("Error deleting investment:", error);
+            
+            // Show error notification
+            if (window.Notify) {
+                Notify.error("Грешка", `Грешка при изтриване: ${error.message}`);
+            } else {
+                alert(`Грешка при изтриване: ${error.message}`);
+            }
         });
     }
     
     /**
-     * Handle form submission (create/update investment)
+     * Handle form submission
      */
     function handleFormSubmit(event) {
         event.preventDefault();
         
-        if (!form) return;
-        
         // Get form data
         const formData = new FormData(form);
         
-        // Determine API endpoint and HTTP method
+        // Determine API endpoint and method
         let apiEndpoint, method;
         
         if (currentInvestmentId) {
             // Update existing investment
             method = 'PUT';
             
-            if (apiInvestmentType === 'bank') {
+            if (investmentType === 'bank') {
                 apiEndpoint = `/api/bank-investments/${currentInvestmentId}`;
             } else {
                 apiEndpoint = `/api/investments/${currentInvestmentId}`;
@@ -1168,17 +1038,17 @@ document.addEventListener("DOMContentLoaded", function() {
             // Create new investment
             method = 'POST';
             
-            if (apiInvestmentType === 'bank') {
+            if (investmentType === 'bank') {
                 apiEndpoint = '/api/bank-investments';
             } else {
                 apiEndpoint = '/api/investments';
             }
         }
         
-        // Prepare data based on investment type
+        // Prepare request data based on investment type
         let requestData = {};
         
-        if (apiInvestmentType === 'bank') {
+        if (investmentType === 'bank') {
             requestData = {
                 amount: parseFloat(formData.get('depositAmount')),
                 interest_rate: parseFloat(formData.get('interestRate')),
@@ -1189,7 +1059,7 @@ document.addEventListener("DOMContentLoaded", function() {
             };
         } else {
             requestData = {
-                type: apiInvestmentType,
+                type: investmentType,
                 symbol: formData.get('investmentSymbol'),
                 amount: parseFloat(formData.get('investmentAmount')),
                 price: parseFloat(formData.get('investmentPrice')),
@@ -1199,7 +1069,7 @@ document.addEventListener("DOMContentLoaded", function() {
             };
         }
         
-        console.log(`Submitting ${method} request to ${apiEndpoint} with data:`, requestData);
+        console.log("Submitting form data:", requestData);
         
         // Send request
         fetch(apiEndpoint, {
@@ -1221,94 +1091,43 @@ document.addEventListener("DOMContentLoaded", function() {
             closeModal();
             
             // Show success message
-            const actionType = currentInvestmentId ? 'обновена' : 'добавена';
-            Notify.success('Успех', `Инвестицията беше ${actionType} успешно!`);
+            const actionText = currentInvestmentId ? "обновена" : "добавена";
+            if (window.Notify) {
+                Notify.success("Успех", `Инвестицията беше ${actionText} успешно!`);
+            } else {
+                alert(`Инвестицията беше ${actionText} успешно!`);
+            }
             
-            // Reload investments data
+            // Reload investments
             loadInvestments();
         })
         .catch(error => {
-            console.error('Error saving investment:', error);
-            Notify.error('Грешка', `Неуспешно запазване на инвестиция: ${error.message}`);
+            console.error("Error saving investment:", error);
+            
+            // Show error notification
+            if (window.Notify) {
+                Notify.error("Грешка", `Грешка при запазване: ${error.message}`);
+            } else {
+                alert(`Грешка при запазване: ${error.message}`);
+            }
         });
     }
     
     /**
-     * Format currency value
-     */
-    function formatCurrency(value) {
-        // Handle undefined or null values
-        if (value === undefined || value === null) {
-            return '0.00';
-        }
-        
-        // Parse value to number if it's a string
-        const numValue = typeof value === 'string' ? parseFloat(value) : value;
-        
-        // Handle NaN
-        if (isNaN(numValue)) {
-            return '0.00';
-        }
-        
-        // Format the number with 2 decimal places and thousands separators
-        return numValue.toLocaleString('bg-BG', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-    }
-    
-    function formatQuantity(value) {
-        // Handle undefined, null, or invalid values
-        if (value === undefined || value === null || isNaN(parseFloat(value))) {
-            return '0';
-        }
-        
-        // Parse value to number if it's a string
-        const numValue = typeof value === 'string' ? parseFloat(value) : value;
-        
-        // For small values (like crypto), show more decimal places
-        if (numValue < 0.01) {
-            return numValue.toLocaleString('bg-BG', {
-                minimumFractionDigits: 4,
-                maximumFractionDigits: 8
-            });
-        }
-        
-        // For larger values, show standard 2 decimal places
-        return numValue.toLocaleString('bg-BG', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-    }
-    
-    function getInterestTypeDisplay(interestType) {
-        const types = {
-            'daily': 'Дневна',
-            'monthly_1': 'Месечна (1м)',
-            'monthly_3': 'Месечна (3м)',
-            'monthly_6': 'Месечна (6м)',
-            'yearly': 'Годишна'
-        };
-        
-        return types[interestType] || 'Годишна';
-    }
-    
-    /**
-     * Show loading state
+     * Show loading indicator
      */
     function showLoading() {
-        // Add loading indicator to table
         const tableBody = document.getElementById('investments-table-body');
-        if (tableBody) {
-            tableBody.innerHTML = `
-                <tr class="loading-row">
-                    <td colspan="6" style="text-align: center; padding: 2rem;">
-                        <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid #3c3c3c; border-top: 3px solid ${colorMap[apiType]}; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                        <p style="margin-top: 1rem; color: #ccc;">Зареждане на инвестиции...</p>
-                    </td>
-                </tr>
-            `;
-        }
+        if (!tableBody) return;
+        
+        tableBody.innerHTML = `
+            <tr class="loading-row">
+                <td colspan="6" style="text-align: center; padding: 2rem;">
+                    <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid #3c3c3c; border-top: 3px solid ${colorMap[investmentType]}; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <p style="margin-top: 1rem; color: #ccc;">Зареждане на инвестиции...</p>
+                </td>
+            </tr>
+        `;
         
         // Add keyframes for spin animation if not already present
         if (!document.getElementById('spin-animation')) {
@@ -1325,24 +1144,70 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     /**
-     * Hide loading state
+     * Hide loading indicator
      */
     function hideLoading() {
-        // Remove loading indicator from table
         const loadingRow = document.querySelector('.loading-row');
-        if (loadingRow) {
-            loadingRow.remove();
-        }
+        if (loadingRow) loadingRow.remove();
     }
     
-    // These functions are placeholders - implement them based on your application needs
-    function updateHistoryChart() { /* Implementation skipped for brevity */ }
-    function updateInsights() { /* Implementation skipped for brevity */ }
-    function openAddModal() { /* Implementation skipped for brevity */ }
-    function openEditModal() { /* Implementation skipped for brevity */ }
-    function closeModal() { /* Implementation skipped for brevity */ }
-    function confirmDelete() { /* Implementation skipped for brevity */ }
-    function openConfirmDialog() { /* Implementation skipped for brevity */ }
-    function closeConfirmDialog() { /* Implementation skipped for brevity */ }
-    function handleFormSubmit() { /* Implementation skipped for brevity */ }
+    /**
+     * Format currency value with 2 decimal places
+     */
+    function formatCurrency(value) {
+        if (value === undefined || value === null) {
+            return '0.00';
+        }
+        
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        
+        if (isNaN(numValue)) {
+            return '0.00';
+        }
+        
+        return numValue.toLocaleString('bg-BG', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+    
+    /**
+     * Format quantity value (with more decimal places for small values)
+     */
+    function formatQuantity(value) {
+        if (value === undefined || value === null || isNaN(parseFloat(value))) {
+            return '0';
+        }
+        
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        
+        // For small values (like crypto), show more decimal places
+        if (numValue < 0.01) {
+            return numValue.toLocaleString('bg-BG', {
+                minimumFractionDigits: 6,
+                maximumFractionDigits: 8
+            });
+        }
+        
+        // For larger values, show standard 2 decimal places
+        return numValue.toLocaleString('bg-BG', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+    
+    /**
+     * Get interest type display text
+     */
+    function getInterestTypeDisplay(interestType) {
+        const types = {
+            'daily': 'Дневна',
+            'monthly_1': 'Месечна (1м)',
+            'monthly_3': 'Месечна (3м)',
+            'monthly_6': 'Месечна (6м)',
+            'yearly': 'Годишна'
+        };
+        
+        return types[interestType] || 'Годишна';
+    }
 });

@@ -175,6 +175,17 @@ app.use("/blog", require("./routes/blog.routes.js"));
 app.use("/admin/blog", isAdmin, require("./routes/blog.routes.js"));
 app.use("/profile", require("./routes/profile.routes.js"));
 app.use("/investments", require("./routes/investments-page.routes.js"));
+app.get("/investments/bank", requireAuth, async (req, res) => {
+    try {
+        res.render("bankinvestment", { user: req.session.user });
+    } catch (error) {
+        console.error("Error rendering bank investments page:", error);
+        res.status(500).render("error", { 
+            error: { message: "Error loading bank investments page" },
+            user: req.session.user
+        });
+    }
+});
 
 
 // 404 Handler - Catch-all for unmatched routes
