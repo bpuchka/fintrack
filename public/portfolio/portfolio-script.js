@@ -563,4 +563,142 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         };
     }
+    document.addEventListener('portfolioDataLoaded', function(event) {
+        // Initialize real-time price updates
+        initializeRealtimePrices();
+    });
+    
+    // Function to initialize real-time price updates
+    function initializeRealtimePrices() {
+        // Initialize the real-time price system
+        if (window.RealtimePrices) {
+            RealtimePrices.init({
+                autoRefresh: true,
+                refreshRate: 60000 // 1 minute
+            });
+            
+            // Add real-time price indicators to the page
+            addPriceIndicators();
+            
+            // Do an initial refresh of prices
+            RealtimePrices.refreshAllPrices();
+        } else {
+            console.warn('RealtimePrices not available. Real-time updates disabled.');
+        }
+    }
+    
+    // Function to add price indicators to the page
+    function addPriceIndicators() {
+        // Get all investment items from the page
+        const investmentItems = document.querySelectorAll('.investment-item');
+        
+        investmentItems.forEach(item => {
+            // Get the investment name from the item
+            const nameElement = item.querySelector('.investment-name');
+            if (!nameElement) return;
+            
+            const name = nameElement.textContent.trim();
+            
+            // Extract the symbol
+            const symbol = extractSymbol(name);
+            if (!symbol) return;
+            
+            // Add real-time indicator to the investment value
+            const valueElement = item.querySelector('.investment-value');
+            if (valueElement) {
+                // Add a small indicator icon for real-time data
+                const indicator = document.createElement('span');
+                indicator.className = 'realtime-indicator';
+                indicator.innerHTML = '<i class="fas fa-sync"></i>';
+                indicator.title = 'Real-time price updates enabled';
+                valueElement.appendChild(indicator);
+                
+                // Add data attributes for the real-time price system
+                valueElement.setAttribute('data-price-symbol', symbol);
+                valueElement.setAttribute('data-price-display', 'price');
+                valueElement.setAttribute('data-show-currency', 'true');
+            }
+            
+            // Also add to percentage element if it exists
+            const percentageElement = item.querySelector('.investment-percentage');
+            if (percentageElement) {
+                percentageElement.setAttribute('data-price-symbol', symbol);
+                percentageElement.setAttribute('data-price-display', 'change-percent');
+            }
+        });
+        
+        // Add indicator to main value display
+        const totalValueElement = document.querySelector('.total-value .amount');
+        if (totalValueElement) {
+            const liveTag = document.createElement('span');
+            liveTag.className = 'live-tag';
+            liveTag.textContent = 'LIVE';
+            totalValueElement.appendChild(liveTag);
+        }
+        
+        // Add CSS for indicators
+        addIndicatorStyles();
+    }
+    
+    // Extract symbol from investment name
+    function extractSymbol(name) {
+        // Special handling for different investment types
+        if (name.includes('Банков влог') || name.includes('Депозит')) {
+            return null; // Bank deposits don't have real-time prices
+        }
+        
+        // For crypto, stocks, etc. the name often contains the symbol
+        const matches = name.match(/^([A-Z0-9]{1,5})\b/);
+        if (matches && matches[1]) {
+            return matches[1];
+        }
+        
+        // If nothing matched, try to handle some common cases
+        if (name.includes('Bitcoin') || name.toLowerCase().includes('биткойн')) return 'BTC';
+        if (name.includes('Ethereum') || name.toLowerCase().includes('етериум')) return 'ETH';
+        if (name.includes('Apple')) return 'AAPL';
+        if (name.includes('Tesla')) return 'TSLA';
+        if (name.includes('NVIDIA')) return 'NVDA';
+        if (name.includes('Gold') || name.toLowerCase().includes('злато')) return 'GLD';
+        if (name.includes('Silver') || name.toLowerCase().includes('сребро')) return 'SLV';
+        
+        return null;
+    }
+    
+    // Add CSS for real-time indicators
+    function addIndicatorStyles() {
+        if (document.getElementById('realtime-indicator-styles')) return;
+        
+        const style = document.createElement('style');
+        style.id = 'realtime-indicator-styles';
+        style.innerHTML = `
+            .realtime-indicator {
+                display: inline-block;
+                margin-left: 6px;
+                font-size: 80%;
+                color: #6dc0e0;
+                animation: pulse 2s infinite;
+            }
+            
+            @keyframes pulse {
+                0% { opacity: 0.6; }
+                50% { opacity: 1; }
+                100% { opacity: 0.6; }
+            }
+            
+            .live-tag {
+                display: inline-block;
+                margin-left: 8px;
+                padding: 2px 6px;
+                border-radius: 4px;
+                background-color: #6dc0e0;
+                color: #1e1e1e;
+                font-size: 60%;
+                font-weight: bold;
+                vertical-align: middle;
+                animation: pulse 2s infinite;
+            }
+        `;
+        document.head.appendChild(style);
+    }
 });

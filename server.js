@@ -169,6 +169,8 @@ app.use("/api/prices", require("./routes/investment-prices.routes.js"));
 app.use("/api/investments", require("./routes/investments.routes.js"));
 app.use("/api/bank-investments", require("./routes/bank.investment.routes.js"));
 app.use("/api/portfolio", require("./routes/portfolio.routes.js"));
+app.use("/api/blog", require("./routes/blog.api.routes.js"));
+app.use("/api/realtime-prices", require("./routes/realtime-prices.routes"));
 
 // Page Routes
 app.use("/blog", require("./routes/blog.routes.js"));
@@ -221,15 +223,22 @@ process.on('SIGTERM', () => {
     });
 });
 
-/* ✅ CRON JOBS (placed last)
-cron.schedule("0 0 * * *", async () => {
-    console.log("Running daily price update...");
-    await fetchAndStoreDailyPrices();
-    console.log("Daily price update complete.");
+   //✅ CRON JOBS (placed last)
+   cron.schedule("0 0 * * *", async () => {
+    console.log("Running daily historical crypto data update...");
+    const apiAvailable = await checkApiStatus();
+    
+    if (apiAvailable) {
+      await fetchAndStoreHistoricalCrypto(true); // true = use cache when available
+      console.log("Daily historical crypto data update complete.");
+    } else {
+      console.log("API not available or rate limit reached. Skipping historical data update.");
+    }
   });
-  
+  /*
 cron.schedule("* /5 * * * *", async () => { "  // kato se maha komentara da se mahne razstoqnieto mezhdu / i *
     console.log("Running intraday price update...");
     await fetchAndStoreIntradayPrices();
     console.log("Intraday price update complete.");
-  }); */
+  }); 
+*/

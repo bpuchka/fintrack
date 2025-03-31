@@ -9,24 +9,16 @@ const CACHE_DIR = path.join(__dirname, 'cache');
 
 // Asset categories and symbols
 const assets = {
-  //stocks: ["AAPL", "NVDA", "TSLA"],
- // etfs: ["GLD", "SLV"],  // Changed from commodities to etfs
+  stocks: ["AAPL", "NVDA", "TSLA"],
+  etfs: ["GLD", "SLV"],
   crypto: ["BTC", "ETH", "USDT", "XRP", "SOL"],
-  //forex: ["EUR", "BGN", "GBP"] // These will be paired with USD
+  forex: ["EUR", "BGN", "GBP"] // These will be paired with USD
 };
 
 // Map asset types to your table's enum values
 const assetTypeMapping = {
   'stocks': 'stock',
-  'etfs': 'etf',         // Changed from commodities to etfs
-  'crypto': 'crypto',
-  'forex': 'forex'
-};
-
-// Map for API request type - GLD and SLV need to be treated as stocks for API calls
-const apiRequestTypeMapping = {
-  'stocks': 'stocks',
-  'etfs': 'stocks',     // ETFs use stock API endpoints
+  'etfs': 'etf',
   'crypto': 'crypto',
   'forex': 'forex'
 };
@@ -43,18 +35,18 @@ async function ensureCacheDir() {
 }
 
 /**
- * Checks if we have cached data for an asset
+ * Saves data to cache
  * @param {string} symbol - The asset symbol
  * @param {string} assetType - Type of asset
- * @returns {Promise<boolean>} - Whether cache exists
+ * @param {object} data - Data to cache
  */
-async function hasCachedData(symbol, assetType) {
+async function saveToCache(symbol, assetType, data) {
   try {
     const cacheFile = path.join(CACHE_DIR, `${symbol}_${assetType}.json`);
-    await fs.access(cacheFile);
-    return true;
+    await fs.writeFile(cacheFile, JSON.stringify(data));
+    console.log(`Cached data for ${symbol}`);
   } catch (error) {
-    return false;
+    console.error(`Error caching data for ${symbol}:`, error.message);
   }
 }
 
@@ -76,18 +68,242 @@ async function getFromCache(symbol, assetType) {
 }
 
 /**
- * Saves data to cache
+ * Checks if we have cached data for an asset
  * @param {string} symbol - The asset symbol
  * @param {string} assetType - Type of asset
- * @param {object} data - Data to cache
+ * @returns {Promise<boolean>} - Whether cache exists
  */
-async function saveToCache(symbol, assetType, data) {
+async function hasCachedData(symbol, assetType) {
   try {
     const cacheFile = path.join(CACHE_DIR, `${symbol}_${assetType}.json`);
-    await fs.writeFile(cacheFile, JSON.stringify(data));
-    console.log(`Cached data for ${symbol}`);
+    await fs.access(cacheFile);
+    return true;
   } catch (error) {
-    console.error(`Error caching data for ${symbol}:`, error.message);
+    return false;
+  }
+}
+
+/**
+ * Fetch current prices for all assets using bulk quotes API
+ * @param {boolean} useCache - Whether to use cached data if available
+ * @returns {Promise<Object>} - Object with symbols as keys and prices as values
+ */
+async function fetchBulkQuotes(useCache = true) {
+  try {
+    await ensureCacheDir();
+    
+    // Create a flat list of all symbols
+    let allSymbols = [];
+    let symbolToTypeMap = {};
+    
+    for (const type in assets) {
+      for (const symbol of assets[type]) {
+        if (type === 'forex') {
+          if (symbol !== 'USD') {  // USD is the base, not needed in forex pairs
+            // For forex, format as currency pairs with USD
+            const forexSymbol = `${symbol}USD`;
+            allSymbols.push(forexSymbol);
+            symbolToTypeMap[forexSymbol] = type;
+          }
+        } else {
+          allSymbols.push(symbol);
+          symbolToTypeMap[symbol] = type;
+        }
+      }
+    }
+    
+    // Join symbols with commas for the API call
+    const symbolsString = allSymbols.join(',');
+    
+    console.log(`Fetching bulk quotes for: ${symbolsString}`);
+    
+    // Check if we have cached data for all symbols and use it if requested
+    let cachedResults = {};
+    let missingSymbols = [];
+    
+    if (useCache) {
+      for (const symbol of allSymbols) {
+        const type = symbolToTypeMap[symbol];
+        if (await hasCachedData(symbol, type)) {
+          const cachedData = await getFromCache(symbol, type);
+          if (cachedData) {
+            cachedResults[symbol] = cachedData;
+          } else {
+            missingSymbols.push(symbol);
+          }
+        } else {
+          missingSymbols.push(symbol);
+        }
+      }
+    } else {
+      missingSymbols = [...allSymbols];
+    }
+    
+    // Only make API call if we have missing symbols
+    let apiResults = {};
+    if (missingSymbols.length > 0) {
+      // Make the bulk API call
+      const url = `${BASE_URL}?function=BATCH_STOCK_QUOTES&symbols=${missingSymbols.join(',')}&apikey=${ALPHA_VANTAGE_API_KEY}`;
+      const response = await axios.get(url);
+      
+      // Process the API response
+      if (response.data && response.data['Stock Quotes']) {
+        const quotes = response.data['Stock Quotes'];
+        quotes.forEach(quote => {
+          const symbol = quote['1. symbol'];
+          const price = parseFloat(quote['2. price']);
+          apiResults[symbol] = { price, timestamp: new Date() };
+          
+          // Cache this result
+          const type = symbolToTypeMap[symbol];
+          saveToCache(symbol, type, { price, timestamp: new Date() });
+        });
+      } else if (response.data && response.data['Note']) {
+        console.warn(`API rate limit note: ${response.data['Note']}`);
+      } else {
+        console.error('Unexpected API response format:', response.data);
+      }
+    }
+    
+    // Combine cached and API results
+    return { ...cachedResults, ...apiResults };
+  } catch (error) {
+    console.error('Error fetching bulk quotes:', error);
+    return {};
+  }
+}
+
+/**
+ * Fetch and store current prices for all supported assets
+ * @param {boolean} useCache - Whether to use cached data if available
+ * @returns {Promise<void>}
+ */
+async function fetchAndStoreCurrentPrices(useCache = true) {
+  try {
+    console.log("Starting current price fetch using bulk API...");
+    
+    // Fetch all prices using bulk API
+    const prices = await fetchBulkQuotes(useCache);
+    
+    // Prepare database connection
+    const connection = await pool.getConnection();
+    
+    try {
+      // Begin transaction
+      await connection.beginTransaction();
+      
+      // Create records to insert
+      const records = [];
+      
+      for (const symbol in prices) {
+        // Determine the asset type
+        let assetType;
+        let baseSymbol = symbol;
+        
+        // Handle forex pairs (e.g., EURUSD -> EUR)
+        if (symbol.endsWith('USD') && symbol.length > 3) {
+          baseSymbol = symbol.slice(0, -3);
+          assetType = 'forex';
+        } else {
+          // Find asset type from our mapping
+          for (const type in assets) {
+            if (assets[type].includes(baseSymbol)) {
+              assetType = type;
+              break;
+            }
+          }
+        }
+        
+        // Skip if we couldn't determine asset type
+        if (!assetType) {
+          console.warn(`Could not determine asset type for ${symbol}, skipping`);
+          continue;
+        }
+        
+        // Map to database enum value
+        const mappedAssetType = assetTypeMapping[assetType];
+        if (!mappedAssetType) {
+          console.warn(`Invalid asset type mapping for: ${assetType}, skipping`);
+          continue;
+        }
+        
+        // Create record
+        const price = prices[symbol].price;
+        const formattedDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        
+        records.push([baseSymbol, price, formattedDate, mappedAssetType]);
+      }
+      
+      // Insert into database if we have records
+      if (records.length > 0) {
+        // Create temporary table
+        await connection.query(`
+          CREATE TEMPORARY TABLE temp_investment_prices (
+            symbol VARCHAR(10) NOT NULL,
+            price DECIMAL(10,2) NOT NULL,
+            timestamp DATETIME NOT NULL,
+            asset_type ENUM('stock','crypto','etf','forex') NOT NULL
+          )
+        `);
+        
+        // Insert records into temporary table
+        const insertQuery = "INSERT INTO temp_investment_prices (symbol, price, timestamp, asset_type) VALUES ?";
+        await connection.query(insertQuery, [records]);
+        
+        // Move data to actual table with ON DUPLICATE KEY UPDATE
+        await connection.query(`
+          INSERT INTO investment_prices (symbol, price, timestamp, asset_type)
+          SELECT symbol, price, timestamp, asset_type FROM temp_investment_prices
+          ON DUPLICATE KEY UPDATE price = VALUES(price)
+        `);
+        
+        // Drop temporary table
+        await connection.query("DROP TEMPORARY TABLE temp_investment_prices");
+        
+        // Commit transaction
+        await connection.commit();
+        console.log(`Successfully stored ${records.length} current prices`);
+      } else {
+        console.warn("No valid price records to insert");
+        await connection.commit();
+      }
+    } catch (error) {
+      // Rollback on error
+      await connection.rollback();
+      throw error;
+    } finally {
+      // Release connection
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Error in fetchAndStoreCurrentPrices:", error.message);
+  }
+}
+
+/**
+ * Fetch and store historical data for cryptos
+ * This still needs to be done individually as bulk historical data is not available
+ * in the free tier of Alpha Vantage
+ * @param {boolean} useCache - Whether to use cached data if available
+ */
+async function fetchAndStoreHistoricalCrypto(useCache = true) {
+  try {
+    console.log("Starting historical crypto data fetch...");
+    
+    // Process each crypto symbol
+    for (const symbol of assets.crypto) {
+      try {
+        await fetchHistoricalPrices(symbol, 'crypto', useCache);
+        // Add a delay to respect API rate limits
+        await new Promise(resolve => setTimeout(resolve, 12000)); // 12 second delay
+      } catch (error) {
+        console.error(`Error processing ${symbol}:`, error.message);
+      }
+    }
+    
+    console.log("Historical crypto data fetch completed");
+  } catch (error) {
+    console.error("Error in fetchAndStoreHistoricalCrypto:", error.message);
   }
 }
 
@@ -120,36 +336,29 @@ async function fetchHistoricalPrices(symbol, assetType, useCache = true) {
       let dataKey;
       let priceKey;
       
-      // Get the appropriate API request type for this asset
-      const apiRequestType = apiRequestTypeMapping[assetType] || assetType;
-      
-      // Different endpoints based on API request type
-      if (apiRequestType === 'stocks') {
+      // Different endpoints based on asset type
+      if (assetType === 'stocks' || assetType === 'etfs') {
         url = `${BASE_URL}?function=TIME_SERIES_DAILY&symbol=${symbol}&outputsize=full&apikey=${ALPHA_VANTAGE_API_KEY}`;
         dataKey = 'Time Series (Daily)';
         priceKey = '4. close';
-      } else if (apiRequestType === 'crypto') {
+      } else if (assetType === 'crypto') {
         url = `${BASE_URL}?function=DIGITAL_CURRENCY_DAILY&symbol=${symbol}&market=USD&apikey=${ALPHA_VANTAGE_API_KEY}`;
         dataKey = 'Time Series (Digital Currency Daily)';
-        priceKey = '4. close';  // Fixed: Changed from '4a. close (USD)' to '4. close'
-      } else if (apiRequestType === 'forex') {
+        priceKey = '4. close';
+      } else if (assetType === 'forex') {
         url = `${BASE_URL}?function=FX_DAILY&from_symbol=${symbol}&to_symbol=USD&outputsize=full&apikey=${ALPHA_VANTAGE_API_KEY}`;
         dataKey = 'Time Series FX (Daily)';
         priceKey = '4. close';
       }
 
-      console.log(`Fetching data for ${symbol} (${assetType}) using ${apiRequestType} endpoint...`);
+      console.log(`Fetching data for ${symbol} (${assetType})...`);
       const response = await axios.get(url);
       
-      // Log response keys for debugging
-      console.log(`API response keys for ${symbol}:`, Object.keys(response.data));
-      
-      // Check for API error messages
+      // Check for API errors
       if (response.data['Error Message']) {
         throw new Error(`API Error: ${response.data['Error Message']}`);
       }
       
-      // Check for rate limit
       if (response.data['Information'] && response.data['Information'].includes('API rate limit')) {
         throw new Error(`API rate limit reached: ${response.data['Information']}`);
       }
@@ -161,19 +370,9 @@ async function fetchHistoricalPrices(symbol, assetType, useCache = true) {
         }
       }
 
-      // Check if we have the expected data structure
+      // Check if we have the expected data
       if (!response.data[dataKey]) {
-        console.error(`Data structure for ${symbol} is:`, JSON.stringify(response.data, null, 2));
         throw new Error(`No data found for ${symbol} under key "${dataKey}"`);
-      }
-
-      // Log first data entry to verify structure
-      const dateKeys = Object.keys(response.data[dataKey]);
-      if (dateKeys.length > 0) {
-        const firstDate = dateKeys[0];
-        console.log(`Sample data for ${symbol} on ${firstDate}:`, 
-          JSON.stringify(response.data[dataKey][firstDate], null, 2));
-        console.log(`Price using key "${priceKey}":`, response.data[dataKey][firstDate][priceKey]);
       }
 
       data = {
@@ -182,7 +381,7 @@ async function fetchHistoricalPrices(symbol, assetType, useCache = true) {
         data: response.data[dataKey]
       };
       
-      // Save successful response to cache
+      // Save to cache
       await saveToCache(symbol, assetType, data);
     }
     
@@ -192,7 +391,7 @@ async function fetchHistoricalPrices(symbol, assetType, useCache = true) {
       throw new Error(`Invalid asset type mapping for: ${assetType}`);
     }
 
-    // If we're using cached data, the structure is different
+    // Process the data for database insertion
     const timeSeriesData = isFromCache ? data.data : data.data;
     const actualPriceKey = isFromCache ? data.priceKey : data.priceKey;
 
@@ -200,10 +399,10 @@ async function fetchHistoricalPrices(symbol, assetType, useCache = true) {
     const connection = await pool.getConnection();
     
     try {
-      // Begin transaction for better performance with many inserts
+      // Begin transaction
       await connection.beginTransaction();
 
-      // Prepare and execute batch insert
+      // Prepare batch insert
       const records = [];
       for (const date in timeSeriesData) {
         const price = parseFloat(timeSeriesData[date][actualPriceKey]);
@@ -216,9 +415,9 @@ async function fetchHistoricalPrices(symbol, assetType, useCache = true) {
         }
       }
 
-      // Check if we have any valid records
+      // Insert records if we have any
       if (records.length > 0) {
-        // Create temporary table for the batch that matches your schema
+        // Create temporary table
         await connection.query(`
           CREATE TEMPORARY TABLE temp_investment_prices (
             symbol VARCHAR(10) NOT NULL,
@@ -228,11 +427,11 @@ async function fetchHistoricalPrices(symbol, assetType, useCache = true) {
           )
         `);
 
-        // Insert records into temporary table
+        // Insert records
         const insertQuery = "INSERT INTO temp_investment_prices (symbol, price, timestamp, asset_type) VALUES ?";
         await connection.query(insertQuery, [records]);
 
-        // Move data from temporary table to actual table with ON DUPLICATE KEY UPDATE
+        // Move data to actual table
         await connection.query(`
           INSERT INTO investment_prices (symbol, price, timestamp, asset_type)
           SELECT symbol, price, timestamp, asset_type FROM temp_investment_prices
@@ -242,7 +441,7 @@ async function fetchHistoricalPrices(symbol, assetType, useCache = true) {
         // Drop temporary table
         await connection.query("DROP TEMPORARY TABLE temp_investment_prices");
 
-        // Commit the transaction
+        // Commit transaction
         await connection.commit();
         console.log(`Successfully stored ${records.length} historical prices for ${symbol}`);
       } else {
@@ -250,11 +449,11 @@ async function fetchHistoricalPrices(symbol, assetType, useCache = true) {
         await connection.commit();
       }
     } catch (error) {
-      // Rollback in case of error
+      // Rollback on error
       await connection.rollback();
       throw error;
     } finally {
-      // Release connection back to pool
+      // Release connection
       connection.release();
     }
   } catch (error) {
@@ -262,86 +461,19 @@ async function fetchHistoricalPrices(symbol, assetType, useCache = true) {
     if (error.response) {
       console.error('Response data:', error.response.data);
     }
-    // Rethrow rate limit errors so the main function can handle them
-    if (error.message.includes('rate limit') || error.message.includes('call frequency')) {
-      throw error;
-    }
+    throw error;
   }
 }
 
 /**
- * Fetch and store historical data for all assets with proper rate limiting
- * @param {number} batchSize - Number of assets to process in each batch (optional)
- * @param {number} delay - Delay in milliseconds between requests (optional)
- * @param {boolean} useCache - Whether to use cached data if available
- * @returns {Promise<void>}
- */
-async function fetchAndStoreHistoricalPrices(batchSize = 5, delay = 15000, useCache = true) {
-  try {
-    console.log("Starting historical data fetch...");
-    console.log(`Using batch size: ${batchSize}, delay: ${delay}ms, useCache: ${useCache}`);
-    
-    // Create a flat list of all asset requests
-    const requests = [];
-    for (const type in assets) {
-      const symbols = assets[type];
-      for (const symbol of symbols) {
-        requests.push({ symbol, type });
-      }
-    }
-    
-    // Counter for API calls to monitor rate limit
-    let apiCallsMade = 0;
-    const maxApiCalls = 25; // Free tier limit
-    
-    // Process requests
-    for (let i = 0; i < requests.length; i++) {
-      const { symbol, type } = requests[i];
-      
-      try {
-        // Skip if we're about to exceed API limit
-        if (apiCallsMade >= maxApiCalls && !useCache) {
-          console.warn(`Stopping due to API rate limit (${apiCallsMade}/${maxApiCalls} calls made)`);
-          break;
-        }
-        
-        // Try to fetch data (will use cache if available and requested)
-        await fetchHistoricalPrices(symbol, type, useCache);
-        
-        // Only increment counter if the request likely used an API call
-        if (!useCache || !(await hasCachedData(symbol, type))) {
-          apiCallsMade++;
-        }
-        
-        // If we have more requests to process, wait before the next one
-        if (i < requests.length - 1) {
-          console.log(`Waiting ${delay/1000} seconds before next request...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      } catch (error) {
-        // If we hit a rate limit, stop processing
-        if (error.message.includes('rate limit') || error.message.includes('call frequency')) {
-          console.warn(`API rate limit reached after ${apiCallsMade} calls. Stopping.`);
-          break;
-        }
-      }
-    }
-    
-    console.log(`Finished fetching and storing data. Made ${apiCallsMade} API calls out of ${maxApiCalls} daily limit.`);
-  } catch (error) {
-    console.error("Error during batch processing:", error.message);
-  }
-}
-
-/**
- * Check the Alpha Vantage API status by making a simple request
+ * Check the Alpha Vantage API status
+ * @returns {Promise<boolean>} Whether the API is available
  */
 async function checkApiStatus() {
   try {
-    // Check if we can access the API
+    // Simple API check
     const response = await axios.get(`${BASE_URL}?function=TIME_SERIES_INTRADAY&symbol=IBM&interval=1min&apikey=${ALPHA_VANTAGE_API_KEY}`);
     
-    // Check for rate limit in the response
     if (response.data['Information'] && response.data['Information'].includes('API rate limit')) {
       console.warn(`API rate limit reached: ${response.data['Information']}`);
       return false;
@@ -359,9 +491,11 @@ async function checkApiStatus() {
   }
 }
 
-// Export functions for use in other modules
+// Export functions
 module.exports = {
-  fetchAndStoreHistoricalPrices,
+  fetchAndStoreCurrentPrices,
+  fetchAndStoreHistoricalCrypto,
+  fetchHistoricalPrices,
   checkApiStatus,
   assets
 };

@@ -9,12 +9,24 @@ document.addEventListener("DOMContentLoaded", function() {
     const pathParts = path.split('/');
     let investmentType = pathParts[pathParts.length - 1];
     
-    // Handle plural forms in URLs
-    investmentType = investmentType === 'stocks' ? 'stock' : 
-                    investmentType === 'metals' ? 'metal' : 
-                    investmentType;
+    // Handle plural forms and other possible variations in URLs
+    if (investmentType === 'stocks') {
+        investmentType = 'stock';
+    } else if (investmentType === 'metals') {
+        investmentType = 'metal';
+    } else if (investmentType === 'crypto' || investmentType === 'cryptocurrencies') {
+        investmentType = 'crypto';
+    } else if (investmentType === 'bank' || investmentType === 'deposits') {
+        investmentType = 'bank';
+    }
     
-    console.log("Investment type from URL:", investmentType);
+    console.log("Investment type detected from URL:", investmentType);
+    
+    // Fallback to a default if not recognized
+    if (!['bank', 'crypto', 'stock', 'metal'].includes(investmentType)) {
+        console.warn("Unrecognized investment type, defaulting to 'bank'");
+        investmentType = 'bank';
+    }
     
     // Color mapping for investment types
     const colorMap = {
@@ -59,25 +71,26 @@ document.addEventListener("DOMContentLoaded", function() {
     loadInvestments();
     
     // Event listeners for modal controls
-    if (newInvestmentBtn) {
-        newInvestmentBtn.addEventListener('click', function() {
-            openAddModal();
-        });
+   if (newInvestmentBtn) {
+        newInvestmentBtn.addEventListener('click', openAddModal);
     }
-    
+
     if (cancelBtn) {
         cancelBtn.addEventListener('click', closeModal);
     }
-    
+
     if (deleteBtn) {
         deleteBtn.addEventListener('click', confirmDelete);
     }
-    
+
     // Close modal when clicking on X or outside
     closeModalBtns.forEach(btn => {
-        btn.addEventListener('click', closeModal);
+        btn.addEventListener('click', function() {
+            closeModal();
+            closeConfirmDialog();
+        });
     });
-    
+
     window.addEventListener('click', function(event) {
         if (event.target === modal) {
             closeModal();
@@ -85,7 +98,7 @@ document.addEventListener("DOMContentLoaded", function() {
             closeConfirmDialog();
         }
     });
-    
+
     // Close confirm dialog on cancel
     if (cancelActionBtn) {
         cancelActionBtn.addEventListener('click', closeConfirmDialog);
@@ -440,6 +453,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <td>${displayPrice}</td>
                 <td>${displayValue}</td>
                 <td class="investment-value ${isProfitPositive ? 'positive' : 'negative'}">${profitDisplay}</td>
+                <!--
                 <td>
                     <div class="table-actions">
                         <button class="action-btn edit" data-id="${investment.id}">
@@ -450,6 +464,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         </button>
                     </div>
                 </td>
+                -->
             `;
             
             tableBody.appendChild(row);
@@ -464,7 +479,8 @@ document.addEventListener("DOMContentLoaded", function() {
      */
     function addTableActionListeners() {
         // Edit buttons
-        document.querySelectorAll('.action-btn.edit').forEach(button => {
+        const editButtons = document.querySelectorAll('.action-btn.edit');
+        editButtons.forEach(button => {
             button.addEventListener('click', function() {
                 const investmentId = this.dataset.id;
                 openEditModal(investmentId);
@@ -472,7 +488,8 @@ document.addEventListener("DOMContentLoaded", function() {
         });
         
         // Delete buttons
-        document.querySelectorAll('.action-btn.delete').forEach(button => {
+        const deleteButtons = document.querySelectorAll('.action-btn.delete');
+        deleteButtons.forEach(button => {
             button.addEventListener('click', function() {
                 const investmentId = this.dataset.id;
                 currentInvestmentId = investmentId;
@@ -723,38 +740,11 @@ document.addEventListener("DOMContentLoaded", function() {
     /**
      * Open add investment modal
      */
-    function openAddModal() {
-        if (!modal) return;
-        
-        // Reset form
-        if (form) form.reset();
-        
-        // Update modal title
-        const modalTitle = document.getElementById('modal-title');
-        if (modalTitle) modalTitle.textContent = 'Добави нова инвестиция';
-        
-        // Hide delete button 
-        if (deleteBtn) deleteBtn.style.display = 'none';
-        
-        // Reset current investment ID
-        currentInvestmentId = null;
-        
-        // Set default date to today
-        const dateInput = document.getElementById('investmentDate');
-        if (dateInput) dateInput.valueAsDate = new Date();
-        
-        // Show modal
-        modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden'; // Prevent scrolling
-    }
-    
-    /**
-     * Open edit investment modal
-     */
     function openEditModal(investmentId) {
         if (!modal || !investmentId) return;
         
         console.log("Opening edit modal for investment ID:", investmentId);
+        console.log("Current investment type:", investmentType);
         
         // Store current investment ID
         currentInvestmentId = investmentId;
@@ -768,11 +758,161 @@ document.addEventListener("DOMContentLoaded", function() {
         
         // Choose the correct API endpoint based on investment type
         let apiEndpoint;
+        
+        // For bank investments, use bank-investments API endpoint
         if (investmentType === 'bank') {
             apiEndpoint = `/api/bank-investments/${investmentId}`;
         } else {
+            // First try the standard investments endpoint
             apiEndpoint = `/api/investments/${investmentId}`;
         }
+        
+        console.log("Using primary API endpoint:", apiEndpoint);
+        
+        // Show loading indicator in modal
+        const modalBody = document.querySelector('.modal-body');
+        if (modalBody) {
+            const loadingHTML = `
+                <div class="modal-loading" style="text-align: center; padding: 2rem;">
+                    <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid #3c3c3c; border-top: 3px solid ${colorMap[investmentType]}; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <p style="margin-top: 1rem; color: #ccc;">Зареждане на данни...</p>
+                </div>
+            `;
+            modalBody.insertAdjacentHTML('afterbegin', loadingHTML);
+        }
+        
+        // Show modal while loading
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden'; // Prevent scrolling
+        
+        // Fetch investment data with fallback
+        fetchInvestmentData(investmentId, apiEndpoint);
+    }
+    
+    /**
+     * Fetch investment data with fallback to another endpoint if needed
+     */
+    function fetchInvestmentData(investmentId, primaryEndpoint) {
+        fetch(primaryEndpoint, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            console.log("Primary response status:", response.status);
+            
+            if (response.ok) {
+                return response.json().then(data => {
+                    processInvestmentData(data, investmentId);
+                });
+            }
+            
+            // If primary endpoint fails, try the alternative
+            console.log("Primary endpoint failed, trying alternative...");
+            const isBank = primaryEndpoint.includes('bank-investments');
+            const alternativeEndpoint = isBank ? 
+                `/api/investments/${investmentId}` : 
+                `/api/bank-investments/${investmentId}`;
+            
+            console.log("Using alternative API endpoint:", alternativeEndpoint);
+            
+            return fetch(alternativeEndpoint, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin'
+            }).then(altResponse => {
+                console.log("Alternative response status:", altResponse.status);
+                
+                if (!altResponse.ok) {
+                    throw new Error(`Both endpoints failed. Last status: ${altResponse.status}`);
+                }
+                
+                return altResponse.json().then(data => {
+                    processInvestmentData(data, investmentId);
+                });
+            });
+        })
+        .catch(error => {
+            console.error("Error fetching investment:", error);
+            
+            // Remove loading indicator
+            const loadingElement = document.querySelector('.modal-loading');
+            if (loadingElement) {
+                loadingElement.remove();
+            }
+            
+            // Show error notification
+            if (window.Notify) {
+                Notify.error("Грешка", `Грешка при зареждане на инвестиция: ${error.message}`);
+            } else {
+                alert(`Грешка при зареждане на инвестиция: ${error.message}`);
+            }
+        });
+    }
+    
+    /**
+     * Process the investment data once retrieved
+     */
+    function processInvestmentData(data, investmentId) {
+        console.log("Fetched investment data:", data);
+        
+        // Remove loading indicator
+        const loadingElement = document.querySelector('.modal-loading');
+        if (loadingElement) {
+            loadingElement.remove();
+        }
+        
+        if (!data.success) {
+            throw new Error(data.message || "Failed to fetch investment data");
+        }
+        
+        // Extract investment data
+        const investment = data.data || {};
+        
+        // Detect actual investment type
+        const actualType = investment.investment_type || investmentType;
+        console.log("Actual investment type:", actualType);
+        
+        // Set hidden investment ID field
+        const idInput = document.getElementById('investmentId');
+        if (idInput) idInput.value = investmentId;
+        
+        // Populate form based on detected investment type
+        if (actualType === 'bank') {
+            populateBankForm(investment);
+        } else {
+            populateStandardForm(investment);
+        }
+    }
+    
+    /**
+     * Open edit investment modal
+     */
+    function openEditModal(investmentId) {
+        if (!modal || !investmentId) return;
+        
+        console.log("Opening edit modal for investment ID:", investmentId);
+        console.log("Current investment type:", investmentType);
+        
+        // Store current investment ID
+        currentInvestmentId = investmentId;
+        
+        // Update modal title
+        const modalTitle = document.getElementById('modal-title');
+        if (modalTitle) modalTitle.textContent = 'Редактирай инвестиция';
+        
+        // Show delete button
+        if (deleteBtn) deleteBtn.style.display = 'block';
+        
+        // Choose the correct API endpoint based on investment type
+        let apiEndpoint;
+            apiEndpoint = `/api/investments/${investmentId}`;
+        
+        console.log("Using API endpoint:", apiEndpoint);
         
         // Fetch investment data
         fetch(apiEndpoint, {
@@ -783,12 +923,14 @@ document.addEventListener("DOMContentLoaded", function() {
             credentials: 'same-origin'
         })
         .then(response => {
+            console.log("Response status:", response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
+            console.log("Fetched investment data:", data);
             // Extract investment data
             const investment = data.data || {};
             
@@ -803,7 +945,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 populateStandardForm(investment);
             }
             
-            // Show modal
+            // Show modal with proper styling
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden'; // Prevent scrolling
         })
@@ -817,40 +959,6 @@ document.addEventListener("DOMContentLoaded", function() {
                 alert(`Грешка при зареждане на инвестиция: ${error.message}`);
             }
         });
-    }
-    
-    /**
-     * Populate bank investment form
-     */
-    function populateBankForm(investment) {
-        // Currency
-        const currencyInput = document.getElementById('depositCurrency');
-        if (currencyInput) currencyInput.value = investment.currency || 'BGN';
-        
-        // Amount
-        const amountInput = document.getElementById('depositAmount');
-        if (amountInput) amountInput.value = investment.quantity || investment.amount;
-        
-        // Interest rate
-        const rateInput = document.getElementById('interestRate');
-        if (rateInput) rateInput.value = investment.interest_rate || 0;
-        
-        // Interest type
-        const typeInput = document.getElementById('interestType');
-        if (typeInput) typeInput.value = investment.interest_type || 'yearly';
-        
-        // Date
-        const dateInput = document.getElementById('investmentDate');
-        if (dateInput && investment.purchase_date) {
-            // Format date for input (YYYY-MM-DD)
-            const date = new Date(investment.purchase_date);
-            const formattedDate = date.toISOString().split('T')[0];
-            dateInput.value = formattedDate;
-        }
-        
-        // Notes
-        const notesInput = document.getElementById('investmentNotes');
-        if (notesInput) notesInput.value = investment.notes || '';
     }
     
     /**
@@ -954,8 +1062,10 @@ document.addEventListener("DOMContentLoaded", function() {
      * Confirm delete operation
      */
     function confirmDelete() {
-        if (!currentInvestmentId) return;
-        
+        if (!currentInvestmentId) {
+            console.error('No investment ID set for delete operation');
+            return;
+        }
         openConfirmDialog('Изтриване на инвестиция', 'Сигурни ли сте, че искате да изтриете тази инвестиция?');
     }
     

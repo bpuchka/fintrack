@@ -395,4 +395,84 @@ router.get("/api/:type", requireAuth, async (req, res) => {
     }
 });
 
+
+// Get a single investment by ID
+router.get("/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.user.id;
+      const investmentId = req.params.id;
+      
+      console.log(`Fetching investment ID: ${investmentId} for user ID: ${userId}`);
+      
+      // First check if this is a regular investment
+      const [investments] = await pool.query(
+        "SELECT * FROM user_investments WHERE id = ?", 
+        [investmentId]
+      );
+      
+      if (investments.length > 0) {
+        // Investment found, now check if it belongs to the user
+        const investment = investments[0];
+        
+        console.log(`Found investment: ${JSON.stringify(investment)}`);
+        
+        if (investment.user_id == userId) {
+          return res.json({
+            success: true,
+            data: investment
+          });
+        } else {
+          console.log(`Permission denied: Investment belongs to user ${investment.user_id}, not ${userId}`);
+        }
+      } else {
+        console.log(`Investment with ID ${investmentId} not found in user_investments table`);
+      }
+      
+      // If we got here, it wasn't found in user_investments, so try bank_investment table
+      const [bankInvestments] = await pool.query(
+        "SELECT *, investment_date AS purchase_date FROM bank_investment WHERE id = ?", 
+        [investmentId]
+      );
+      
+      if (bankInvestments.length > 0) {
+        // Bank investment found, now check if it belongs to the user
+        const bankInvestment = bankInvestments[0];
+        
+        console.log(`Found bank investment: ${JSON.stringify(bankInvestment)}`);
+        
+        if (bankInvestment.user_id == userId) {
+          // Format bank investment to match regular investment structure
+          const formattedInvestment = {
+            ...bankInvestment,
+            investment_type: 'bank',
+            quantity: bankInvestment.amount,
+            purchase_price: 1
+          };
+          
+          return res.json({
+            success: true,
+            data: formattedInvestment
+          });
+        } else {
+          console.log(`Permission denied: Bank investment belongs to user ${bankInvestment.user_id}, not ${userId}`);
+        }
+      } else {
+        console.log(`Investment with ID ${investmentId} not found in bank_investment table either`);
+      }
+      
+      // If we got here, the investment was not found in either table
+      return res.status(404).json({ 
+        success: false, 
+        message: "Investment not found" 
+      });
+      
+    } catch (error) {
+      console.error("Error fetching investment:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Error fetching investment data: " + error.message 
+      });
+    }
+  });
+
 module.exports = router;
