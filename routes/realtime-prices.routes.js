@@ -30,6 +30,14 @@ const SUPPORTED_ASSETS = {
 };
 
 /**
+ * Get asset mappings
+ * Route: GET /api/realtime-prices/assets/mappings
+ */
+router.get("/assets/mappings", (req, res) => {
+  res.json(SUPPORTED_ASSETS);
+});
+
+/**
  * Get real-time price for a single asset
  * Route: GET /api/realtime-prices/:symbol?type=assetType
  */
@@ -78,11 +86,11 @@ router.post("/batch", async (req, res) => {
       });
     }
     
-    // Limit to 20 assets per request to avoid overloading the API
-    if (assets.length > 20) {
+    // Limit to 50 assets per request - using paid tier capacity
+    if (assets.length > 50) {
       return res.status(400).json({
         success: false,
-        message: "Too many assets requested. Maximum 20 assets per request."
+        message: "Too many assets requested. Maximum 50 assets per request."
       });
     }
     

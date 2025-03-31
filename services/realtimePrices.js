@@ -1,13 +1,14 @@
+// services/realtimePrices.js
 const axios = require("axios");
 require("dotenv").config();
 
 const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
 const BASE_URL = "https://www.alphavantage.co/query";
 
-// Cache to store prices and reduce API calls
+// Cache to store prices with minimal duration
 let priceCache = {};
 let lastCacheRefresh = null;
-const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
+const CACHE_DURATION = 5 * 1000; // Only 5 seconds cache for real-time updates
 
 /**
  * Get real-time price for a symbol
@@ -181,14 +182,14 @@ function processForexResponse(data, symbol) {
  * @returns {Promise<Object>} - Object mapping symbols to price data
  */
 async function getBatchRealTimePrices(assets) {
-  // Use some rate limiting to avoid API limits
+  // Utilizing paid tier capacity (75 calls per minute)
   const batchResults = {};
   
-  // Process in batches of 5 with delay between batches
-  for (let i = 0; i < assets.length; i += 5) {
-    const batch = assets.slice(i, i + 5);
+  // Process in batches of 20 to maximize throughput
+  for (let i = 0; i < assets.length; i += 20) {
+    const batch = assets.slice(i, i + 20);
     
-    // Process batch in parallel
+    // Process batch in parallel - with premium API we can make more concurrent requests
     const batchPromises = batch.map(asset => 
       getRealTimePrice(asset.symbol, asset.assetType)
         .then(result => {
@@ -206,9 +207,9 @@ async function getBatchRealTimePrices(assets) {
     
     await Promise.all(batchPromises);
     
-    // Add delay between batches to respect API rate limits
-    if (i + 5 < assets.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    // Minimal delay between larger batches
+    if (i + 20 < assets.length) {
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
   

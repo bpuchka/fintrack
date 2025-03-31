@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
+    initializeRealtimePrices();
     const today = new Date();
     const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
     document.getElementById('last-updated-date').textContent = today.toLocaleDateString('bg-BG', options);
@@ -563,6 +564,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         };
     }
+
     document.addEventListener('portfolioDataLoaded', function(event) {
         // Initialize real-time price updates
         initializeRealtimePrices();
