@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load portfolio data from the server
     loadPortfolioData();
-    
+    document.dispatchEvent(new CustomEvent('portfolioDataLoaded'));
     // Pie Chart for Investment Distribution - will be updated when data loads
     const ctx = document.getElementById('investment-chart').getContext('2d');
     const investmentChart = new Chart(ctx, {

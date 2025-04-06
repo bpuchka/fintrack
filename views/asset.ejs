@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= symbol %> - FinTrack</title>
+    <link rel="stylesheet" href="/home/header-design.css">
+    <link rel="stylesheet" href="/home/home-design.css">
+    <link rel="stylesheet" href="/asset/asset-design.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    
+    <%- include('partials/header') %>
+
+    <main class="asset-container">
+        <div class="asset-header">
+            <div class="asset-info">
+                <h1><%= symbol %> <span class="asset-name"><%= assetName %></span></h1>
+                <div class="asset-price">
+                    <span class="price-value" id="currentPrice">Loading...</span>
+                    <span class="price-change" id="priceChange">...</span>
+                </div>
+            </div>
+            <div class="asset-actions">
+                <a href="/portfolio" class="action-button secondary">
+                    <span>Към портфолиото</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="asset-content">
+            <div class="chart-container">
+                <div class="chart-controls">
+                    <div class="timeframe-selector">
+                        <button class="timeframe-button active" data-timeframe="1D">1Д</button>
+                        <button class="timeframe-button" data-timeframe="1W">1С</button>
+                        <button class="timeframe-button" data-timeframe="1M">1М</button>
+                        <button class="timeframe-button" data-timeframe="3M">3М</button>
+                        <button class="timeframe-button" data-timeframe="1Y">1Г</button>
+                        <button class="timeframe-button" data-timeframe="ALL">MAX</button>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="price-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="trading-panel">
+                <div class="panel-header">
+                    <h2>Добави към портфолиото</h2>
+                </div>
+                
+                <form id="trade-form" class="trade-form">
+                    <input type="hidden" id="assetSymbol" name="symbol" value="<%= symbol %>">
+                    <input type="hidden" id="assetType" name="type" value="<%= assetType %>">
+                    
+                    <div class="form-tabs">
+                        <button type="button" class="tab-button active" data-tab="buy">Купи</button>
+                        <button type="button" class="tab-button" data-tab="sell">Продай</button>
+                    </div>
+                    
+                    <div class="form-content">
+                        <div class="form-group">
+                            <label for="tradePrice">Цена (<%= currency %>)</label>
+                            <div class="input-with-tag">
+                                <input type="number" id="tradePrice" name="price" step="0.000001" min="0" required>
+                                <span class="input-tag"><%= currency %></span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="tradeAmount">Количество</label>
+                            <div class="input-with-tag">
+                                <input type="number" id="tradeAmount" name="amount" step="0.000001" min="0" required>
+                                <span class="input-tag"><%= symbol %></span>
+                            </div>
+                        </div>
+                        
+                        <div class="amount-slider-container">
+                            <input type="range" id="amountSlider" min="0" max="100" value="0" step="1" class="amount-slider">
+                            <div class="slider-labels">
+                                <span>0</span>
+                                <span>25</span>
+                                <span>50</span>
+                                <span>75</span>
+                                <span>100</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="tradeTotal">Общо</label>
+                            <div class="input-with-tag">
+                                <input type="number" id="tradeTotal" name="total" step="0.01" min="0" required readonly>
+                                <span class="input-tag"><%= currency %></span>
+                            </div>
+                        </div>
+                        
+                        <div class="available-balance">
+                            <span>Налични: <span id="availableBalance">0.00</span> <%= currency %></span>
+                        </div>
+                        
+                        <button type="submit" id="tradeButton" class="trade-button buy">Купи <%= symbol %></button>
+                    </div>
+                </form>
+                
+                <div class="market-info">
+                    <div class="info-item">
+                        <span class="info-label">24ч Обем:</span>
+                        <span class="info-value" id="volume24h">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">24ч Най-висока:</span>
+                        <span class="info-value" id="high24h">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">24ч Най-ниска:</span>
+                        <span class="info-value" id="low24h">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="asset-overview">
+            <h2>За <%= symbol %></h2>
+            <div class="overview-content">
+                <p id="assetDescription">Зареждане на информация за <%= symbol %>...</p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="/fintrack-header-logo.svg" alt="Logo">
+            </div>
+            <div class="footer-menu">
+                <nav>
+                    <ul>
+                        <li><a href="/home">Начало</a></li>
+                        <li><a href="/blog">Блог</a></li>
+                        <li><a href="/contact">Контакти</a></li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="footer-social-media">
+                <a href="#">Facebook</a>
+                <a href="#">Instagram</a>
+                <a href="#">Twitter/X</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Success Notification Modal -->
+    <div id="success-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Успешна транзакция</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="success-message">Вашата транзакция беше успешно обработена!</p>
+                <div class="modal-actions">
+                    <a href="/portfolio" class="modal-button primary">Виж портфолиото</a>
+                    <button class="modal-button secondary close-modal-btn">Затвори</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/notification.js"></script>
+    <script src="/asset/asset-script.js"></script>
+</body>
+</html>

@@ -3,6 +3,14 @@ const express = require("express");
 const router = express.Router();
 const { getRealTimePrice, getBatchRealTimePrices } = require("../services/realtimePrices");
 
+router.get("/test", (req, res) => {
+  res.json({
+    success: true,
+    message: "Realtime prices API is working",
+    timestamp: new Date().toISOString()
+  });
+});
+
 /**
  * Define common asset mappings for API calls
  */
@@ -86,11 +94,11 @@ router.post("/batch", async (req, res) => {
       });
     }
     
-    // Limit to 50 assets per request - using paid tier capacity
-    if (assets.length > 50) {
+    // Limit to 75 assets per request - using paid tier capacity
+    if (assets.length > 75) {
       return res.status(400).json({
         success: false,
-        message: "Too many assets requested. Maximum 50 assets per request."
+        message: "Too many assets requested. Maximum 75 assets per request."
       });
     }
     

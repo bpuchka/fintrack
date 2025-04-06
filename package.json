@@ -13,11 +13,12 @@
     "ejs": "^3.1.10",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
-    "mysql2": "^2.3.3",
-    "path": "^0.12.7"
+    "mysql2": "^3.14.0",
+    "path": "^0.12.7",
+    "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "nodemon": "^2.0.15"
+    "nodemon": "^3.1.9"
   },
   "description": "��#\u0000 \u0000f\u0000i\u0000n\u0000t\u0000r\u0000a\u0000c\u0000k\u0000\r\u0000 \u0000",
   "repository": {

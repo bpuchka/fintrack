@@ -343,8 +343,7 @@ router.put("/:id", requireAuth, async (req, res) => {
         }
         
         // Extract data from request
-        const { investment_type, symbol, quantity, purchase_price, currency, 
-                interest_rate, interest_type, purchase_date, notes } = req.body;
+        const { investment_type, symbol, quantity, purchase_price, currency, purchase_date, notes } = req.body;
         
         // Validate data based on investment type
         if (!investment_type) {
@@ -365,7 +364,7 @@ router.put("/:id", requireAuth, async (req, res) => {
             notes: notes || null
         };
         
-        // Add type-specific data
+        // Add type-specific data based on investment_type
         if (investment_type === 'bank') {
             // Validate bank deposit data
             if (!currency) {
@@ -374,19 +373,16 @@ router.put("/:id", requireAuth, async (req, res) => {
             if (!quantity || isNaN(quantity) || quantity <= 0) {
                 return res.status(422).json({ success: false, message: "Invalid amount" });
             }
-            if (!interest_rate || isNaN(interest_rate) || interest_rate < 0 || interest_rate > 100) {
-                return res.status(422).json({ success: false, message: "Invalid interest rate" });
-            }
             
             updateData = {
                 ...updateData,
                 symbol: `BANK_${currency}`, // Ensure bank symbol follows convention
                 quantity: quantity,
                 currency: currency,
-                interest_rate: interest_rate,
-                interest_type: interest_type,
                 purchase_price: 1 // Default for bank deposits
             };
+            // Note: interest_rate and interest_type should not be included here
+            // as they don't exist in the user_investments table
         } else {
             // Validate other investment types
             if (!symbol) {
@@ -407,10 +403,8 @@ router.put("/:id", requireAuth, async (req, res) => {
                 symbol: symbol,
                 quantity: parsedQuantity,
                 purchase_price: purchase_price,
-                currency: currency,
-                // Set bank-specific fields to null for non-bank investments
-                interest_rate: null,
-                interest_type: null
+                currency: currency
+                // Do not include interest_rate or interest_type here
             };
         }
         

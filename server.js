@@ -6,7 +6,7 @@ const session = require("express-session");
 const pool = require("./config/db");
 const bcrypt = require("bcryptjs");
 const cron = require("node-cron");
-const { fetchAndStoreDailyPrices, fetchAndStoreIntradayPrices } = require("./services/fetchPrices");
+const { fetchAndStoreHistoricalCrypto, fetchAndStoreCurrentPrices, checkApiStatus } = require("./services/fetchPrices");
 
 
 const app = express();
@@ -170,13 +170,16 @@ app.use("/api/investments", require("./routes/investments.routes.js"));
 app.use("/api/bank-investments", require("./routes/bank.investment.routes.js"));
 app.use("/api/portfolio", require("./routes/portfolio.routes.js"));
 app.use("/api/blog", require("./routes/blog.api.routes.js"));
-app.use("/api/realtime-prices", require("./routes/realtime-prices.routes"));
+app.use("/api/realtime-prices", require("./routes/realtime-prices.routes.js"));
+app.use("/api/prices", require("./routes/price-data.routes.js"));
+app.use("/api/asset", require("./routes/asset.routes.js"));
 
 // Page Routes
 app.use("/blog", require("./routes/blog.routes.js"));
 app.use("/admin/blog", isAdmin, require("./routes/blog.routes.js"));
 app.use("/profile", require("./routes/profile.routes.js"));
 app.use("/investments", require("./routes/investments-page.routes.js"));
+app.use("/asset", require("./routes/asset.routes.js")); 
 app.get("/investments/bank", requireAuth, async (req, res) => {
     try {
         res.render("bankinvestment", { user: req.session.user });
@@ -207,8 +210,16 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
     console.log(`Server is running on port ${PORT}.`);
+    
+    // Initialize daily prices after server starts
+    try {
+        const PriceData = require("./models/price-data.model");
+        await PriceData.initializeDailyPrices();
+    } catch (error) {
+        console.error("Error initializing price data:", error);
+    }
 });
 
 // Graceful Shutdown
@@ -225,20 +236,33 @@ process.on('SIGTERM', () => {
 
    //✅ CRON JOBS (placed last)
    cron.schedule("0 0 * * *", async () => {
-    console.log("Running daily historical crypto data update...");
-    const apiAvailable = await checkApiStatus();
-    
-    if (apiAvailable) {
-      await fetchAndStoreHistoricalCrypto(true); // true = use cache when available
-      console.log("Daily historical crypto data update complete.");
-    } else {
-      console.log("API not available or rate limit reached. Skipping historical data update.");
+    console.log("Running daily price update...");
+    try {
+        const PriceData = require("./models/price-data.model");
+        const apiAvailable = await checkApiStatus();
+        
+        if (apiAvailable) {
+            // Update each asset category
+            for (const category in PriceData.assets) {
+                for (const symbol of PriceData.assets[category]) {
+                    if (category === 'forex' && symbol === 'USD') continue;
+                    await PriceData.fetchAndStoreDailyPrice(symbol, category);
+                    // Add delay between requests
+                    await new Promise(resolve => setTimeout(resolve, 12000));
+                }
+            }
+            console.log("Daily price update complete.");
+        } else {
+            console.log("API not available. Skipping daily price update.");
+        }
+    } catch (error) {
+        console.error("Error in daily price update:", error);
     }
-  });
-  /*
-cron.schedule("* /5 * * * *", async () => { "  // kato se maha komentara da se mahne razstoqnieto mezhdu / i *
+});
+/*
+// Intraday price update (every 5 minutes)
+cron.schedule("* /5 * * * *", async () => {   //da se mahne razstoqnieto mezhd * i /5
     console.log("Running intraday price update...");
-    await fetchAndStoreIntradayPrices();
+    await fetchAndStoreCurrentPrices(false);
     console.log("Intraday price update complete.");
-  }); 
-*/
+});*/

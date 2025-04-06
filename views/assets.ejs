@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Available Assets - FinTrack</title>
+    <link rel="stylesheet" href="/home/header-design.css">
+    <link rel="stylesheet" href="/home/home-design.css">
+    <link rel="stylesheet" href="/portfolio/portfolio-design.css">
+    <style>
+        .assets-container {
+            margin-top: 5rem;
+            padding: 0 6rem;
+            width: 100%;
+            box-sizing: border-box;
+            color: #ffffff;
+        }
+        
+        .assets-header {
+            margin-bottom: 2rem;
+        }
+        
+        .assets-header h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            margin: 0;
+        }
+        
+        .assets-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .asset-category {
+            background-color: #2c2c2c;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .asset-category h2 {
+            font-size: 1.5rem;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            color: #ffffff;
+        }
+        
+        .asset-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 1rem;
+        }
+        
+        .asset-item {
+            background-color: #3c3c3c;
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+        
+        .asset-item:hover {
+            transform: translateY(-5px);
+            background-color: #444;
+        }
+        
+        .asset-item a {
+            color: #ffffff;
+            text-decoration: none;
+            display: block;
+        }
+        
+        .crypto-color { color: #8e44ad; }
+        .stock-color { color: #27ae60; }
+        .metal-color { color: #f39c12; }
+        
+        .asset-category.crypto { border-top: 3px solid #8e44ad; }
+        .asset-category.stock { border-top: 3px solid #27ae60; }
+        .asset-category.metal { border-top: 3px solid #f39c12; }
+        
+        @media (max-width: 1024px) {
+            .assets-container {
+                padding: 0 3rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .assets-container {
+                padding: 0 1.5rem;
+            }
+            
+            .assets-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <%- include('partials/header') %>
+
+    <main class="assets-container">
+        <div class="assets-header">
+            <h1>Available <a style="color: #6dc0e0;">Assets</a></h1>
+            <p>View detailed price charts and trade assets directly on their detail pages</p>
+        </div>
+
+        <div class="assets-content">
+            <% if (assetData && Object.keys(assetData).length > 0) { %>
+                <% if (assetData.crypto && assetData.crypto.length > 0) { %>
+                    <div class="asset-category crypto">
+                        <h2 class="crypto-color">Cryptocurrencies</h2>
+                        <div class="asset-list">
+                            <% assetData.crypto.forEach(symbol => { %>
+                                <div class="asset-item">
+                                    <a href="/asset/<%= symbol %>">
+                                        <div class="asset-symbol"><%= symbol %></div>
+                                        <% if (assetNames[symbol]) { %>
+                                            <div class="asset-name"><%= assetNames[symbol] %></div>
+                                        <% } %>
+                                    </a>
+                                </div>
+                            <% }); %>
+                        </div>
+                    </div>
+                <% } %>
+                
+                <% if (assetData.stock && assetData.stock.length > 0) { %>
+                    <div class="asset-category stock">
+                        <h2 class="stock-color">Stocks</h2>
+                        <div class="asset-list">
+                            <% assetData.stock.forEach(symbol => { %>
+                                <div class="asset-item">
+                                    <a href="/asset/<%= symbol %>">
+                                        <div class="asset-symbol"><%= symbol %></div>
+                                        <% if (assetNames[symbol]) { %>
+                                            <div class="asset-name"><%= assetNames[symbol] %></div>
+                                        <% } %>
+                                    </a>
+                                </div>
+                            <% }); %>
+                        </div>
+                    </div>
+                <% } %>
+                
+                <% if (assetData.metal && assetData.metal.length > 0) { %>
+                    <div class="asset-category metal">
+                        <h2 class="metal-color">Metals & ETFs</h2>
+                        <div class="asset-list">
+                            <% assetData.metal.forEach(symbol => { %>
+                                <div class="asset-item">
+                                    <a href="/asset/<%= symbol %>">
+                                        <div class="asset-symbol"><%= symbol %></div>
+                                        <% if (assetNames[symbol]) { %>
+                                            <div class="asset-name"><%= assetNames[symbol] %></div>
+                                        <% } %>
+                                    </a>
+                                </div>
+                            <% }); %>
+                        </div>
+                    </div>
+                <% } %>
+                
+                <% if (assetData.unknown && assetData.unknown.length > 0) { %>
+                    <div class="asset-category">
+                        <h2>Other Assets</h2>
+                        <div class="asset-list">
+                            <% assetData.unknown.forEach(symbol => { %>
+                                <div class="asset-item">
+                                    <a href="/asset/<%= symbol %>">
+                                        <div class="asset-symbol"><%= symbol %></div>
+                                    </a>
+                                </div>
+                            <% }); %>
+                        </div>
+                    </div>
+                <% } %>
+            <% } else { %>
+                <div class="no-assets">
+                    <p>No assets found in the database. Please add price data first.</p>
+                </div>
+            <% } %>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="/fintrack-header-logo.svg" alt="Logo">
+            </div>
+            <div class="footer-menu">
+                <nav>
+                    <ul>
+                        <li><a href="/home">Начало</a></li>
+                        <li><a href="/blog">Блог</a></li>
+                        <li><a href="/contact">Контакти</a></li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="footer-social-media">
+                <a href="#">Facebook</a>
+                <a href="#">Instagram</a>
+                <a href="#">Twitter/X</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

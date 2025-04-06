@@ -221,6 +221,63 @@
             </div>
         </div>
     </footer>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+    console.log("=== REAL-TIME PRICES DEBUG ===");
+    
+    // Check if RealtimePrices is available
+    console.log("RealtimePrices available:", typeof RealtimePrices !== 'undefined');
+    
+    // Create a test element to show Bitcoin price
+    const debugContainer = document.createElement('div');
+    debugContainer.style.position = 'fixed';
+    debugContainer.style.bottom = '20px';
+    debugContainer.style.right = '20px';
+    debugContainer.style.backgroundColor = '#333';
+    debugContainer.style.padding = '15px';
+    debugContainer.style.borderRadius = '8px';
+    debugContainer.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+    debugContainer.style.zIndex = '9999';
+    debugContainer.style.color = 'white';
+    debugContainer.style.fontFamily = 'monospace';
+    
+    debugContainer.innerHTML = `
+        <div style="margin-bottom:10px;font-weight:bold;">Real-Time Price Debug</div>
+        <div>BTC: <span id="debug-btc-price" data-price-symbol="BTC" data-price-display="price">Loading...</span></div>
+        <div>GBP: <span id="debug-eth-price" data-price-symbol="GBP" data-price-display="price">Loading...</span></div>
+        <div>AAPL: <span id="debug-aapl-price" data-price-symbol="AAPL" data-price-display="price">Loading...</span></div>
+        <button id="debug-refresh" style="margin-top:10px;padding:5px 10px;background:#6dc0e0;border:none;color:#000;border-radius:4px;cursor:pointer;">Refresh Prices</button>
+    `;
+    
+    document.body.appendChild(debugContainer);
+    
+    // Add refresh button functionality
+    document.getElementById('debug-refresh').addEventListener('click', function() {
+        if (typeof RealtimePrices !== 'undefined') {
+            console.log("Manually refreshing prices...");
+            RealtimePrices.refreshAllPrices();
+        } else {
+            console.error("RealtimePrices not available!");
+            alert("RealtimePrices is not loaded properly!");
+        }
+    });
+    
+    // Initialize if RealtimePrices exists
+    if (typeof RealtimePrices !== 'undefined') {
+        console.log("Initializing RealtimePrices from debug script");
+        RealtimePrices.init({
+            autoRefresh: true,
+            refreshRate: 10000 // 10 seconds for testing
+        });
+        
+        // Initial refresh
+        setTimeout(() => {
+            RealtimePrices.refreshAllPrices();
+        }, 1000);
+    }
+});
+    </script>
+    <script src="/js/realtime-prices.js"></script>
     <script src="/portfolio/portfolio-script.js"></script>
     <script src="/js/notification.js"></script>
 </body>

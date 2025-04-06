@@ -84,6 +84,16 @@ async function hasCachedData(symbol, assetType) {
 }
 
 /**
+ * Fetch and store intraday prices for all assets
+ * Wrapper for compatibility with server.js
+ * @param {boolean} useCache - Whether to use cached data
+ * @returns {Promise<void>}
+ */
+async function fetchAndStoreIntradayPrices(useCache = false) {
+  return fetchAndStoreCurrentPrices(useCache);
+}
+
+/**
  * Fetch current prices for all assets using bulk quotes API
  * @param {boolean} useCache - Whether to use cached data if available
  * @returns {Promise<Object>} - Object with symbols as keys and prices as values
@@ -338,9 +348,9 @@ async function fetchHistoricalPrices(symbol, assetType, useCache = true) {
       
       // Different endpoints based on asset type
       if (assetType === 'stocks' || assetType === 'etfs') {
-        url = `${BASE_URL}?function=TIME_SERIES_DAILY&symbol=${symbol}&outputsize=full&apikey=${ALPHA_VANTAGE_API_KEY}`;
+        url = `${BASE_URL}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${symbol}&outputsize=full&apikey=${ALPHA_VANTAGE_API_KEY}`;
         dataKey = 'Time Series (Daily)';
-        priceKey = '4. close';
+        priceKey = '5. adjusted close';
       } else if (assetType === 'crypto') {
         url = `${BASE_URL}?function=DIGITAL_CURRENCY_DAILY&symbol=${symbol}&market=USD&apikey=${ALPHA_VANTAGE_API_KEY}`;
         dataKey = 'Time Series (Digital Currency Daily)';
@@ -496,6 +506,7 @@ module.exports = {
   fetchAndStoreCurrentPrices,
   fetchAndStoreHistoricalCrypto,
   fetchHistoricalPrices,
+  fetchAndStoreIntradayPrices,
   checkApiStatus,
   assets
 };
