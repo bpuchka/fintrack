@@ -380,6 +380,112 @@ header .button{
     }
 }
 
+@media (max-width: 768px) {
+    .menu-container {
+        flex-direction: column;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 0;
+        overflow: hidden;
+        background-color: #2c2c2c;
+        transition: height 0.3s ease;
+        z-index: 1000;
+        padding-top: 4rem;
+    }
+    
+    .menu-container.active {
+        height: 100vh;
+        overflow-y: auto;
+    }
+    
+    .menu-container nav {
+        width: 100%;
+    }
+    
+    .menu-container nav ul {
+        flex-direction: column;
+        width: 100%;
+        padding: 1rem 0;
+    }
+    
+    .menu-container nav ul li {
+        width: 100%;
+        text-align: center;
+        margin: 0.7rem 0;
+    }
+    
+    .menu-container nav ul li a {
+        display: block;
+        padding: 0.7rem 0;
+        font-size: 1.2rem;
+    }
+    
+    .dropdown-content {
+        position: static;
+        background-color: #333;
+        box-shadow: none;
+        width: 100%;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        margin-top: 0.5rem;
+    }
+    
+    .dropdown.active .dropdown-content {
+        max-height: 300px;
+    }
+    
+    .right-side-header {
+        margin-top: 1rem;
+        width: 100%;
+    }
+    
+    .login-register-section {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .login-register-section a {
+        width: 80%;
+        margin: 0.5rem auto;
+        text-align: center;
+    }
+    
+    .profile-dropdown {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .profile-btn {
+        display: inline-block;
+        padding: 0.7rem 1.5rem;
+    }
+    
+    /* Add specific styling for the assets link */
+    .menu-container nav ul li a[href="/asset"] {
+        position: relative;
+        transition: color 0.3s ease;
+    }
+    
+    .menu-container nav ul li a[href="/asset"].active {
+        color: #6dc0e0;
+    }
+    
+    .menu-container nav ul li a[href="/asset"].active::after {
+        content: '';
+        position: absolute;
+        bottom: -3px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 30px;
+        height: 3px;
+        background-color: #6dc0e0;
+        border-radius: 3px;
+    }
+}
+
 @media (max-width: 480px) {
     header {
         padding: 0 0.8rem;
@@ -397,5 +503,25 @@ header .button{
     .login-btn-header, .register-btn-header {
         width: 100%;
         padding: 0.8rem;
+    }
+
+    .left-side-header {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .logo img {
+        height: 3rem;
+    }
+    
+    .menu-icon {
+        display: block;
+        margin-right: 1rem;
+    }
+    
+    /* Smaller font size for very small screens */
+    .menu-container nav ul li a {
+        font-size: 1.1rem;
+        padding: 0.6rem 0;
     }
 }

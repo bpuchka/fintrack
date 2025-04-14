@@ -6,8 +6,12 @@ const session = require("express-session");
 const pool = require("./config/db");
 const bcrypt = require("bcryptjs");
 const cron = require("node-cron");
-const { fetchAndStoreHistoricalCrypto, fetchAndStoreCurrentPrices, checkApiStatus } = require("./services/fetchPrices");
-
+const { 
+    fetchAndStoreHistoricalCrypto, 
+    fetchAndStoreCurrentPrices, 
+    fetchAndStoreLastMonthData, 
+    checkApiStatus 
+  } = require("./services/fetchPrices");
 
 const app = express();
 
@@ -213,6 +217,23 @@ const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, async () => {
     console.log(`Server is running on port ${PORT}.`);
     
+    // Update last 30 days of price data when server starts
+    try {
+        // Check if API is available
+        const apiAvailable = await checkApiStatus();
+        
+        if (apiAvailable) {
+            console.log("API available. Fetching last month (30 days) of price data...");
+            // Use cache if available to reduce API calls
+            await fetchAndStoreLastMonthData(true);
+            console.log("Last month data update completed.");
+        } else {
+            console.log("API not available. Skipping price data update.");
+        }
+    } catch (error) {
+        console.error("Error updating last month price data:", error);
+    }
+    
     // Initialize daily prices after server starts
     try {
         const PriceData = require("./models/price-data.model");
@@ -222,35 +243,18 @@ const server = app.listen(PORT, async () => {
     }
 });
 
-// Graceful Shutdown
-process.on('SIGTERM', () => {
-    console.log('SIGTERM signal received: closing HTTP server');
-    server.close(() => {
-        console.log('HTTP server closed');
-        pool.end(() => {
-            console.log('Database connection closed');
-            process.exit(0);
-        });
-    });
-});
+// And update the daily CRON job to use the last month function as well:
 
-   //✅ CRON JOBS (placed last)
-   cron.schedule("0 0 * * *", async () => {
+// CRON JOBS
+cron.schedule("0 0 * * *", async () => {
     console.log("Running daily price update...");
     try {
-        const PriceData = require("./models/price-data.model");
         const apiAvailable = await checkApiStatus();
         
         if (apiAvailable) {
-            // Update each asset category
-            for (const category in PriceData.assets) {
-                for (const symbol of PriceData.assets[category]) {
-                    if (category === 'forex' && symbol === 'USD') continue;
-                    await PriceData.fetchAndStoreDailyPrice(symbol, category);
-                    // Add delay between requests
-                    await new Promise(resolve => setTimeout(resolve, 12000));
-                }
-            }
+            // Update the price data for each asset
+            console.log("Updating last month data for all assets...");
+            await fetchAndStoreLastMonthData(true);
             console.log("Daily price update complete.");
         } else {
             console.log("API not available. Skipping daily price update.");
@@ -259,10 +263,3 @@ process.on('SIGTERM', () => {
         console.error("Error in daily price update:", error);
     }
 });
-/*
-// Intraday price update (every 5 minutes)
-cron.schedule("* /5 * * * *", async () => {   //da se mahne razstoqnieto mezhd * i /5
-    console.log("Running intraday price update...");
-    await fetchAndStoreCurrentPrices(false);
-    console.log("Intraday price update complete.");
-});*/

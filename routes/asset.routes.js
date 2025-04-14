@@ -223,7 +223,7 @@ router.get("/:symbol/latest", async (req, res) => {
  */
 router.post("/transaction", requireAuth, async (req, res) => {
     try {
-        const { symbol, assetType, action, price, amount, total } = req.body;
+        const { symbol, assetType, action, price, amount } = req.body;
         const userId = req.session.user.id;
         
         // Validate required fields
@@ -242,63 +242,17 @@ router.post("/transaction", requireAuth, async (req, res) => {
             });
         }
         
+        // Calculate total value
+        const total = price * amount;
+        
         // Begin transaction to ensure atomicity
         const connection = await pool.getConnection();
         await connection.beginTransaction();
         
         try {
-            // If buying, check user's bank balance and deduct the amount
+            // For buy action
             if (action === 'buy') {
-                // Get user's bank balance
-                const [bankInvestments] = await connection.query(`
-                    SELECT * FROM bank_investment 
-                    WHERE user_id = ?
-                `, [userId]);
-                
-                // Calculate total available balance
-                let availableBalance = 0;
-                
-                bankInvestments.forEach(inv => {
-                    availableBalance += parseFloat(inv.amount);
-                });
-                
-                // Check if user has enough balance
-                if (availableBalance < total) {
-                    await connection.rollback();
-                    return res.status(400).json({ 
-                        success: false, 
-                        message: 'Insufficient funds for this purchase' 
-                    });
-                }
-                
-                // Deduct from bank investment
-                // For simplicity, we'll deduct from the first available bank investment
-                // In a real app, you might want to let the user choose which account to use
-                let remainingAmount = total;
-                
-                for (const inv of bankInvestments) {
-                    const invAmount = parseFloat(inv.amount);
-                    
-                    if (invAmount > 0) {
-                        const deductAmount = Math.min(invAmount, remainingAmount);
-                        const newAmount = invAmount - deductAmount;
-                        
-                        // Update bank investment
-                        await connection.query(`
-                            UPDATE bank_investment 
-                            SET amount = ? 
-                            WHERE id = ?
-                        `, [newAmount, inv.id]);
-                        
-                        remainingAmount -= deductAmount;
-                        
-                        if (remainingAmount <= 0) {
-                            break;
-                        }
-                    }
-                }
-                
-                // Create new investment
+                // Create new investment record
                 await connection.query(`
                     INSERT INTO user_investments (
                         user_id, investment_type, symbol, quantity, 
@@ -306,7 +260,7 @@ router.post("/transaction", requireAuth, async (req, res) => {
                     ) VALUES (?, ?, ?, ?, ?, ?, NOW())
                 `, [userId, assetType, symbol, amount, price, 'USD']);
             } 
-            // If selling, check user's holdings and update
+            // For sell action (we'll keep this in case you want it later)
             else if (action === 'sell') {
                 // Get user's holdings of this asset
                 const [userInvestments] = await connection.query(`
@@ -362,19 +316,9 @@ router.post("/transaction", requireAuth, async (req, res) => {
                         }
                     }
                 }
-                
-                // Add the proceeds to the user's bank account
-                // For simplicity, we'll create a new bank deposit
-                await connection.query(`
-                    INSERT INTO bank_investment (
-                        user_id, amount, interest_rate, interest_type, 
-                        investment_date, currency, notes
-                    ) VALUES (?, ?, 0, 'yearly', NOW(), 'USD', ?)
-                `, [userId, total, `Proceeds from selling ${amount} ${symbol}`]);
             }
             
             // Record the transaction in a transactions table if you have one
-            // (This is optional but useful for history/reporting)
             try {
                 const [tableCheck] = await connection.query("SHOW TABLES LIKE 'transactions'");
                 if (tableCheck.length > 0) {

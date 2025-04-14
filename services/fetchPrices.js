@@ -7,6 +7,8 @@ const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
 const BASE_URL = "https://www.alphavantage.co/query";
 const CACHE_DIR = path.join(__dirname, 'cache');
 
+const DEFAULT_TIMEZONE = 'UTC';
+
 // Asset categories and symbols
 const assets = {
   stocks: ["AAPL", "NVDA", "TSLA"],
@@ -22,6 +24,24 @@ const assetTypeMapping = {
   'crypto': 'crypto',
   'forex': 'forex'
 };
+
+/**
+ * Helper function to standardize date formatting for database
+ * Always creates UTC midnight timestamps
+ * @param {Date|string} date - Date to format
+ * @returns {string} - Formatted date string for DB
+ */
+function formatDateForDB(date) {
+  const dateObj = date instanceof Date ? date : new Date(date);
+  // Create date in UTC at midnight
+  const utcDate = new Date(Date.UTC(
+    dateObj.getFullYear(),
+    dateObj.getMonth(),
+    dateObj.getDate(),
+    0, 0, 0, 0
+  ));
+  return utcDate.toISOString().slice(0, 19).replace('T', ' ');
+}
 
 /**
  * Ensures the cache directory exists
@@ -237,38 +257,48 @@ async function fetchAndStoreCurrentPrices(useCache = true) {
           continue;
         }
         
-        // Create record
+        // Create record with standardized UTC midnight timestamp
         const price = prices[symbol].price;
-        const formattedDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        const formattedDate = formatDateForDB(new Date());
+        
+        // Log what we're about to do
+        console.log(`Processing price for ${baseSymbol} with UTC timestamp: ${formattedDate}`);
         
         records.push([baseSymbol, price, formattedDate, mappedAssetType]);
       }
       
       // Insert into database if we have records
       if (records.length > 0) {
-        // Create temporary table
-        await connection.query(`
-          CREATE TEMPORARY TABLE temp_investment_prices (
-            symbol VARCHAR(10) NOT NULL,
-            price DECIMAL(10,2) NOT NULL,
-            timestamp DATETIME NOT NULL,
-            asset_type ENUM('stock','crypto','etf','forex') NOT NULL
-          )
-        `);
-        
-        // Insert records into temporary table
-        const insertQuery = "INSERT INTO temp_investment_prices (symbol, price, timestamp, asset_type) VALUES ?";
-        await connection.query(insertQuery, [records]);
-        
-        // Move data to actual table with ON DUPLICATE KEY UPDATE
-        await connection.query(`
-          INSERT INTO investment_prices (symbol, price, timestamp, asset_type)
-          SELECT symbol, price, timestamp, asset_type FROM temp_investment_prices
-          ON DUPLICATE KEY UPDATE price = VALUES(price)
-        `);
-        
-        // Drop temporary table
-        await connection.query("DROP TEMPORARY TABLE temp_investment_prices");
+        // Check for existing records first to avoid duplicates
+        for (const record of records) {
+          const [symbol, price, timestamp, assetType] = record;
+          
+          // Check if this price already exists for today using DATE() function
+          const [existingPrices] = await connection.query(`
+            SELECT * FROM investment_prices 
+            WHERE symbol = ? AND DATE(timestamp) = DATE(?)
+            ORDER BY timestamp DESC LIMIT 1
+          `, [symbol, formattedDate]);
+          
+          if (existingPrices.length > 0) {
+            console.log(`Price for ${symbol} already exists for ${timestamp.split(' ')[0]}, updating...`);
+            
+            // Update existing price
+            await connection.query(`
+              UPDATE investment_prices 
+              SET price = ? 
+              WHERE id = ?
+            `, [price, existingPrices[0].id]);
+          } else {
+            console.log(`Inserting new price for ${symbol} on ${timestamp}: ${price}`);
+            
+            // Insert new price
+            await connection.query(`
+              INSERT INTO investment_prices (symbol, price, timestamp, asset_type)
+              VALUES (?, ?, ?, ?)
+            `, [symbol, price, timestamp, assetType]);
+          }
+        }
         
         // Commit transaction
         await connection.commit();
@@ -287,6 +317,230 @@ async function fetchAndStoreCurrentPrices(useCache = true) {
     }
   } catch (error) {
     console.error("Error in fetchAndStoreCurrentPrices:", error.message);
+  }
+}
+
+/**
+ * Consistently format dates with a constant time (00:00:00 UTC)
+ * This ensures all daily prices have the exact same timestamp format
+ * @param {Date|string} date - Date to format
+ * @returns {string} - Formatted date string for DB with constant time
+ */
+function formatDateWithConstantTime(date) {
+  const dateObj = date instanceof Date ? date : new Date(date);
+  // Always use 00:00:00 UTC for consistency
+  const utcDate = new Date(Date.UTC(
+    dateObj.getFullYear(),
+    dateObj.getMonth(),
+    dateObj.getDate(),
+    0, 0, 0, 0
+  ));
+  return utcDate.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+/**
+ * Fetch and store last month (30 days) of price data for an asset
+ * Uses 'compact' output size option for API efficiency
+ * 
+ * @param {string} symbol - The asset symbol (e.g., BTC, AAPL)
+ * @param {string} category - The asset category (stocks, etfs, crypto, forex)
+ * @param {boolean} useCache - Whether to use cached data if available
+ * @returns {Promise<number>} - Number of records inserted/updated
+ */
+async function fetchLastMonthPrices(symbol, category, useCache = true) {
+  try {
+    await ensureCacheDir();
+    
+    // Map asset category to your table's enum values
+    const assetType = assetTypeMapping[category];
+    if (!assetType) {
+      throw new Error(`Invalid asset category mapping for: ${category}`);
+    }
+    
+    // Use cache if requested
+    let data;
+    let isFromCache = false;
+    
+    if (useCache && await hasCachedData(symbol, assetType)) {
+      data = await getFromCache(symbol, assetType);
+      if (data) {
+        console.log(`Using cached data for ${symbol} (${category})`);
+        isFromCache = true;
+      }
+    }
+    
+    // If no cached data, fetch from API
+    if (!data) {
+      let url;
+      let dataKey;
+      let priceKey;
+      
+      // Different endpoints based on asset type
+      if (category === 'stocks' || category === 'etfs') {
+        url = `${BASE_URL}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${symbol}&outputsize=compact&apikey=${ALPHA_VANTAGE_API_KEY}`;
+        dataKey = 'Time Series (Daily)';
+        priceKey = '5. adjusted close';
+      } else if (category === 'crypto') {
+        url = `${BASE_URL}?function=DIGITAL_CURRENCY_DAILY&symbol=${symbol}&market=USD&apikey=${ALPHA_VANTAGE_API_KEY}`;
+        dataKey = 'Time Series (Digital Currency Daily)';
+        priceKey = '4. close';
+      } else if (category === 'forex') {
+        url = `${BASE_URL}?function=FX_DAILY&from_symbol=${symbol}&to_symbol=USD&outputsize=compact&apikey=${ALPHA_VANTAGE_API_KEY}`;
+        dataKey = 'Time Series FX (Daily)';
+        priceKey = '4. close';
+      } else {
+        throw new Error(`Unsupported asset category: ${category}`);
+      }
+      
+      console.log(`Fetching last month data for ${symbol} (${category})...`);
+      const response = await axios.get(url);
+      
+      // Check for API errors
+      if (response.data['Error Message']) {
+        throw new Error(`API Error: ${response.data['Error Message']}`);
+      }
+      
+      if (response.data['Information'] && response.data['Information'].includes('API rate limit')) {
+        throw new Error(`API rate limit reached: ${response.data['Information']}`);
+      }
+      
+      if (response.data['Note']) {
+        console.warn(`API Note: ${response.data['Note']}`);
+        if (response.data['Note'].includes('call frequency')) {
+          throw new Error('API call frequency exceeded');
+        }
+      }
+      
+      // Check if we have the expected data
+      if (!response.data[dataKey]) {
+        throw new Error(`No data found for ${symbol} under key "${dataKey}"`);
+      }
+      
+      data = {
+        dataKey,
+        priceKey,
+        data: response.data[dataKey]
+      };
+      
+      // Save to cache
+      await saveToCache(symbol, assetType, data);
+    }
+    
+    // Process the data for database insertion
+    const timeSeriesData = isFromCache ? data.data : data.data;
+    const actualPriceKey = isFromCache ? data.priceKey : data.priceKey;
+    
+    // Calculate date 30 days ago for filtering
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    // Use database connection from pool
+    const connection = await pool.getConnection();
+    let recordCount = 0;
+    
+    try {
+      // Begin transaction
+      await connection.beginTransaction();
+      
+      // Process each date in the time series
+      for (const date in timeSeriesData) {
+        const dateObj = new Date(date);
+        
+        // Only process data from the last 30 days
+        if (dateObj >= thirtyDaysAgo) {
+          const price = parseFloat(timeSeriesData[date][actualPriceKey]);
+          if (!isNaN(price)) {
+            // Format date with constant time (00:00 UTC)
+            const formattedDate = formatDateWithConstantTime(dateObj);
+            
+            // Check if this price already exists for the day using exact timestamp match
+            const [existingPrices] = await connection.query(`
+              SELECT * FROM investment_prices 
+              WHERE symbol = ? AND timestamp = ?
+            `, [symbol, formattedDate]);
+            
+            if (existingPrices.length > 0) {
+              console.log(`Price for ${symbol} already exists for ${formattedDate}, updating...`);
+              
+              // Update existing price
+              await connection.query(`
+                UPDATE investment_prices 
+                SET price = ? 
+                WHERE id = ?
+              `, [price.toFixed(4), existingPrices[0].id]);
+            } else {
+              console.log(`Inserting new price for ${symbol} on ${formattedDate}: ${price}`);
+              
+              // Insert new price
+              await connection.query(`
+                INSERT INTO investment_prices (symbol, price, timestamp, asset_type)
+                VALUES (?, ?, ?, ?)
+              `, [symbol, price.toFixed(4), formattedDate, assetType]);
+            }
+            
+            recordCount++;
+          } else {
+            console.warn(`Invalid price for ${symbol} on ${date}: ${timeSeriesData[date][actualPriceKey]}`);
+          }
+        }
+      }
+      
+      // Commit transaction
+      await connection.commit();
+      console.log(`Successfully processed ${recordCount} prices for ${symbol}`);
+      
+      return recordCount;
+    } catch (error) {
+      // Rollback on error
+      await connection.rollback();
+      throw error;
+    } finally {
+      // Release connection
+      connection.release();
+    }
+  } catch (error) {
+    console.error(`Error processing last month data for ${symbol} (${category}):`, error.message);
+    if (error.response) {
+      console.error('Response data:', error.response.data);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Update price data for all assets for the last 30 days
+ * @param {boolean} useCache - Whether to use cached data if available
+ * @returns {Promise<number>} - Total number of records updated
+ */
+async function fetchAndStoreLastMonthData(useCache = true) {
+  try {
+    console.log("Starting last month data fetch for all assets...");
+    let totalRecords = 0;
+    
+    // Process each asset category
+    for (const category in assets) {
+      for (const symbol of assets[category]) {
+        // Skip USD for forex as it's just used as a comparison currency
+        if (category === 'forex' && symbol === 'USD') continue;
+        
+        try {
+          const recordCount = await fetchLastMonthPrices(symbol, category, useCache);
+          totalRecords += recordCount;
+          
+          // Add a delay to respect API rate limits
+          console.log(`Waiting 3 seconds before next API call...`);
+          await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
+        } catch (error) {
+          console.error(`Error processing ${symbol}:`, error.message);
+        }
+      }
+    }
+    
+    console.log(`Last month data fetch completed. Updated ${totalRecords} total records.`);
+    return totalRecords;
+  } catch (error) {
+    console.error("Error in fetchAndStoreLastMonthData:", error.message);
+    return 0;
   }
 }
 
@@ -407,57 +661,49 @@ async function fetchHistoricalPrices(symbol, assetType, useCache = true) {
 
     // Use database connection from pool
     const connection = await pool.getConnection();
+    let recordCount = 0;
     
     try {
       // Begin transaction
       await connection.beginTransaction();
 
-      // Prepare batch insert
-      const records = [];
+      // Process each date in the time series
       for (const date in timeSeriesData) {
         const price = parseFloat(timeSeriesData[date][actualPriceKey]);
         if (!isNaN(price)) {
-          // Format date as MySQL datetime
-          const formattedDate = new Date(date).toISOString().slice(0, 19).replace('T', ' ');
-          records.push([symbol, price.toFixed(2), formattedDate, mappedAssetType]);
+          // Format date as UTC midnight
+          const formattedDate = formatDateForDB(date);
+          
+          // Check if this price already exists for the day
+          const [existingPrices] = await connection.query(`
+            SELECT * FROM investment_prices 
+            WHERE symbol = ? AND DATE(timestamp) = DATE(?)
+          `, [symbol, formattedDate]);
+          
+          if (existingPrices.length > 0) {
+            // Update existing price
+            await connection.query(`
+              UPDATE investment_prices 
+              SET price = ? 
+              WHERE id = ?
+            `, [price.toFixed(4), existingPrices[0].id]);
+          } else {
+            // Insert new price
+            await connection.query(`
+              INSERT INTO investment_prices (symbol, price, timestamp, asset_type)
+              VALUES (?, ?, ?, ?)
+            `, [symbol, price.toFixed(4), formattedDate, mappedAssetType]);
+          }
+          
+          recordCount++;
         } else {
           console.warn(`Invalid price for ${symbol} on ${date}: ${timeSeriesData[date][actualPriceKey]}`);
         }
       }
 
-      // Insert records if we have any
-      if (records.length > 0) {
-        // Create temporary table
-        await connection.query(`
-          CREATE TEMPORARY TABLE temp_investment_prices (
-            symbol VARCHAR(10) NOT NULL,
-            price DECIMAL(10,2) NOT NULL,
-            timestamp DATETIME NOT NULL,
-            asset_type ENUM('stock','crypto','etf','forex') NOT NULL
-          )
-        `);
-
-        // Insert records
-        const insertQuery = "INSERT INTO temp_investment_prices (symbol, price, timestamp, asset_type) VALUES ?";
-        await connection.query(insertQuery, [records]);
-
-        // Move data to actual table
-        await connection.query(`
-          INSERT INTO investment_prices (symbol, price, timestamp, asset_type)
-          SELECT symbol, price, timestamp, asset_type FROM temp_investment_prices
-          ON DUPLICATE KEY UPDATE price = VALUES(price)
-        `);
-
-        // Drop temporary table
-        await connection.query("DROP TEMPORARY TABLE temp_investment_prices");
-
-        // Commit transaction
-        await connection.commit();
-        console.log(`Successfully stored ${records.length} historical prices for ${symbol}`);
-      } else {
-        console.warn(`No valid price records found for ${symbol}`);
-        await connection.commit();
-      }
+      // Commit transaction
+      await connection.commit();
+      console.log(`Successfully processed ${recordCount} historical prices for ${symbol}`);
     } catch (error) {
       // Rollback on error
       await connection.rollback();
@@ -507,6 +753,9 @@ module.exports = {
   fetchAndStoreHistoricalCrypto,
   fetchHistoricalPrices,
   fetchAndStoreIntradayPrices,
+  fetchLastMonthPrices,
+  fetchAndStoreLastMonthData,
   checkApiStatus,
-  assets
+  assets,
+  assetTypeMapping
 };

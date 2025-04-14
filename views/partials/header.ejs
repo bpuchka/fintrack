@@ -14,28 +14,30 @@
   <div class="menu-container">
       <nav>
           <ul>
-              <% if (!user) { %>
-                  <li><a href="/home">Начало</a></li>
-                  <li><a href="/blog">Блог</a></li>
-                  <li><a href="/contacts">Контакти</a></li>
-              <% } else { %>
-                  <li>
-                      <a href="/portfolio">Портфолио</a>
-                  </li>
-                  <li class="dropdown">
-                      <a href="#" data-toggle="dropdown">
-                          Инвестиции 
-                          <img src="/design/arrow-down.svg" alt="Dropdown arrow">
-                      </a>
-                      <div class="dropdown-content">
-                        <a href="/investments/bank">Банков влог</a>
-                        <a href="/investments/crypto">Крипто</a>
-                        <a href="/investments/stocks">Акции</a>
-                        <a href="/investments/metals">Метали</a>
-                      </div>
-                  </li>
-                  <li><a href="/blog">Блог</a></li>
-              <% } %>
+            <% if (!user) { %>
+                <li><a href="/home">Начало</a></li>
+                <li><a href="/blog">Блог</a></li>
+                <li><a href="/asset">Активи</a></li>
+                <li><a href="/contacts">Контакти</a></li>
+            <% } else { %>
+                <li>
+                    <a href="/portfolio">Портфолио</a>
+                </li>
+                <li class="dropdown">
+                    <a href="#" data-toggle="dropdown">
+                        Инвестиции 
+                        <img src="/design/arrow-down.svg" alt="Dropdown arrow">
+                    </a>
+                    <div class="dropdown-content">
+                      <a href="/investments/bank">Банков влог</a>
+                      <a href="/investments/crypto">Крипто</a>
+                      <a href="/investments/stocks">Акции</a>
+                      <a href="/investments/metals">Метали</a>
+                    </div>
+                </li>
+                <li><a href="/asset">Активи</a></li>
+                <li><a href="/blog">Блог</a></li>
+            <% } %>
           </ul>
       </nav>
 
@@ -72,7 +74,8 @@ document.addEventListener("DOMContentLoaded", function() {
   
   // Toggle mobile menu
   if (menuIcon && menuContainer) {
-      menuIcon.addEventListener('click', function() {
+      menuIcon.addEventListener('click', function(e) {
+          e.stopPropagation(); // Prevent event bubbling
           menuContainer.classList.toggle('active');
           this.setAttribute('aria-expanded', 
               menuContainer.classList.contains('active').toString());
@@ -83,6 +86,13 @@ document.addEventListener("DOMContentLoaded", function() {
                   dropdown.classList.remove('active');
               });
           }
+          
+          // Toggle body scroll
+          if (menuContainer.classList.contains('active')) {
+              document.body.style.overflow = 'hidden'; // Prevent background scrolling
+          } else {
+              document.body.style.overflow = ''; // Restore scrolling
+          }
       });
   }
   
@@ -90,6 +100,7 @@ document.addEventListener("DOMContentLoaded", function() {
   dropdownLinks.forEach(link => {
       link.addEventListener('click', function(e) {
           e.preventDefault();
+          e.stopPropagation(); // Prevent event bubbling
           
           const dropdown = this.closest('.dropdown');
           
@@ -104,6 +115,23 @@ document.addEventListener("DOMContentLoaded", function() {
               
               // Toggle current dropdown
               dropdown.classList.toggle('active');
+          }
+      });
+  });
+  
+  // Close dropdown when clicking dropdown items
+  const dropdownItems = document.querySelectorAll('.dropdown-content a');
+  dropdownItems.forEach(item => {
+      item.addEventListener('click', function() {
+          // On mobile, close the menu after clicking a dropdown item
+          if (window.innerWidth <= 768) {
+              setTimeout(() => {
+                  menuContainer.classList.remove('active');
+                  dropdowns.forEach(dropdown => {
+                      dropdown.classList.remove('active');
+                  });
+                  document.body.style.overflow = ''; // Restore scrolling
+              }, 150); // Small delay for better UX
           }
       });
   });
@@ -123,6 +151,9 @@ document.addEventListener("DOMContentLoaded", function() {
               dropdowns.forEach(dropdown => {
                   dropdown.classList.remove('active');
               });
+              
+              // Restore scrolling
+              document.body.style.overflow = '';
           }
       }
   });
@@ -148,9 +179,13 @@ document.addEventListener("DOMContentLoaded", function() {
       // Skip dropdown toggles
       if (href === '#') return;
       
-      // Check if the href matches current path or is a parent path
-      if (href === currentPath || 
-          (href !== '/home' && href !== '#' && currentPath.startsWith(href))) {
+      // More precise check for asset pages
+      const isAssetPage = currentPath.startsWith('/asset/') && href === '/asset';
+      const isExactMatch = href === currentPath;
+      const isParentPath = href !== '/home' && href !== '#' && currentPath.startsWith(href);
+      
+      // Apply active class
+      if (isExactMatch || isAssetPage || isParentPath) {
           link.classList.add('active');
           
           // Also highlight parent dropdown if in a submenu
@@ -175,6 +210,9 @@ document.addEventListener("DOMContentLoaded", function() {
           dropdowns.forEach(dropdown => {
               dropdown.classList.remove('active');
           });
+          
+          // Restore scrolling
+          document.body.style.overflow = '';
       }
   });
 });

@@ -8,6 +8,11 @@
     <link rel="stylesheet" href="/home/home-design.css">
     <link rel="stylesheet" href="/portfolio/portfolio-design.css">
     <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
         .assets-container {
             margin-top: 5rem;
             padding: 0 6rem;
@@ -102,15 +107,15 @@
 
     <main class="assets-container">
         <div class="assets-header">
-            <h1>Available <a style="color: #6dc0e0;">Assets</a></h1>
-            <p>View detailed price charts and trade assets directly on their detail pages</p>
+            <h1>Поддържани <a style="color: #6dc0e0;">Активи</a></h1>
+            <p>Вижте детайлни ценови диаграми за поддържаните активи</p>
         </div>
 
         <div class="assets-content">
             <% if (assetData && Object.keys(assetData).length > 0) { %>
                 <% if (assetData.crypto && assetData.crypto.length > 0) { %>
                     <div class="asset-category crypto">
-                        <h2 class="crypto-color">Cryptocurrencies</h2>
+                        <h2 class="crypto-color">Криптовалути</h2>
                         <div class="asset-list">
                             <% assetData.crypto.forEach(symbol => { %>
                                 <div class="asset-item">
@@ -128,7 +133,7 @@
                 
                 <% if (assetData.stock && assetData.stock.length > 0) { %>
                     <div class="asset-category stock">
-                        <h2 class="stock-color">Stocks</h2>
+                        <h2 class="stock-color">Акции</h2>
                         <div class="asset-list">
                             <% assetData.stock.forEach(symbol => { %>
                                 <div class="asset-item">
@@ -146,7 +151,7 @@
                 
                 <% if (assetData.metal && assetData.metal.length > 0) { %>
                     <div class="asset-category metal">
-                        <h2 class="metal-color">Metals & ETFs</h2>
+                        <h2 class="metal-color">Метали и ETF-и</h2>
                         <div class="asset-list">
                             <% assetData.metal.forEach(symbol => { %>
                                 <div class="asset-item">

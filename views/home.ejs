@@ -30,7 +30,8 @@
 
                 <div class="user-portfolio">
                     <h3>Приблизителна стойност на парите в портфолиото ви:</h3>
-                    <h3><%= user.portfolioValue %> лв.</h3>
+                    <h3 class="portfolio-value"><%= user.portfolioValue ? parseFloat(user.portfolioValue).toLocaleString('bg-BG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00' %> лв.</h3>
+                    <a href="/portfolio" class="portfolio-link">Вижте вашето портфолио →</a>
                 </div>
             <% } %>
         </div>

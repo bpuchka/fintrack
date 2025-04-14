@@ -2,41 +2,35 @@ document.addEventListener('DOMContentLoaded', function() {
     // Get current symbol and asset type from URL
     const pathParts = window.location.pathname.split('/');
     const symbol = pathParts[pathParts.length - 1]; // Last part of URL should be the symbol
-    const assetType = document.getElementById('assetType') ? 
-                      document.getElementById('assetType').value : 
+    const assetType = document.getElementById('investmentType') ? 
+                      document.getElementById('investmentType').value : 
                       getAssetType(symbol);
     
     // Get chart element
     const chartEl = document.getElementById('price-chart');
     let priceChart = null;
     
-    // Get timeframe buttons - FIXED: Use the correct class from HTML
+    // Get timeframe buttons
     const timeButtons = document.querySelectorAll('.timeframe-button');
     let currentTimeframe = 'day'; // Default timeframe
     
-    // Get tab buttons
-    const tabButtons = document.querySelectorAll('.tab-button');
-    
-    // Get form elements
-    const tradeForm = document.getElementById('trade-form');
-    const tradePriceInput = document.getElementById('tradePrice');
-    const tradeAmountInput = document.getElementById('tradeAmount');
-    const amountSlider = document.getElementById('amountSlider');
-    const tradeTotalInput = document.getElementById('tradeTotal');
-    const tradeButton = document.getElementById('tradeButton');
-    
     // Get price display elements
     const currentPriceEl = document.getElementById('currentPrice');
+    const displayCurrentPriceEl = document.getElementById('displayCurrentPrice');
     const priceChangeEl = document.getElementById('priceChange');
     
     // Get modal elements
-    const successModal = document.getElementById('success-modal');
+    const modal = document.getElementById('investmentModal');
     const closeModalBtns = document.querySelectorAll('.close-modal, .close-modal-btn');
-    const successMessage = document.getElementById('success-message');
+    const cancelBtn = document.getElementById('cancelInvestment');
+    const buyAssetBtn = document.getElementById('buyAssetBtn');
+    const investmentForm = document.getElementById('investmentForm');
+    const investmentPrice = document.getElementById('investmentPrice');
+    const investmentDate = document.getElementById('investmentDate');
     
-    // Store user's assets
-    let userAssets = {};
-    let currentAction = 'buy'; // Default action
+    // Success modal elements
+    const successModal = document.getElementById('success-modal');
+    const successMessage = document.getElementById('success-message');
     
     // Store price data
     let priceData = {
@@ -61,6 +55,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Set up event listeners
         setupEventListeners();
+        
+        // Set today's date as default for the investment date
+        if (investmentDate) {
+            investmentDate.valueAsDate = new Date();
+        }
         
         // Refresh data periodically
         setInterval(refreshPriceData, 30000); // every 30 seconds
@@ -169,10 +168,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 updatePriceDisplay(priceData.current, 0);
             }
             
-            // Update form price input
-            if (tradePriceInput) {
-                tradePriceInput.value = priceData.current.toFixed(2);
-                calculateTotal();
+            // Update investment price input
+            if (investmentPrice) {
+                investmentPrice.value = priceData.current.toFixed(2);
+            }
+            
+            // Update displayed current price
+            if (displayCurrentPriceEl) {
+                displayCurrentPriceEl.textContent = formatCurrency(priceData.current);
             }
         }
     }
@@ -318,8 +321,6 @@ document.addEventListener('DOMContentLoaded', function() {
         priceChart.update();
     }
     
-    // This function has been removed as we're not tracking balance
-    
     // Set up event listeners
     function setupEventListeners() {
         // Timeframe buttons
@@ -340,201 +341,146 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // Tab buttons
-        tabButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const action = this.getAttribute('data-tab');
-                
-                // Update active button
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                this.classList.add('active');
-                
-                // Update current action
-                currentAction = action;
-                
-                // Update trade button text and class
-                if (tradeButton) {
-                    tradeButton.textContent = `${action === 'buy' ? 'Buy' : 'Sell'} ${symbol}`;
-                    tradeButton.className = `trade-button ${action}`;
-                }
-            });
-        });
-        
-        // Price input change
-        if (tradePriceInput) {
-            tradePriceInput.addEventListener('input', calculateTotal);
-        }
-        
-        // Amount input change
-        if (tradeAmountInput) {
-            tradeAmountInput.addEventListener('input', function() {
-                // Update slider position directly with the amount value
-                if (amountSlider) {
-                    const value = parseFloat(this.value) || 0;
-                    // Limit to max 100
-                    amountSlider.value = Math.min(Math.max(value, 0), 100);
-                }
-                
-                calculateTotal();
+        // Buy button to open modal
+        if (buyAssetBtn) {
+            buyAssetBtn.addEventListener('click', function() {
+                openInvestmentModal();
             });
         }
         
-        // Amount slider change - now works with fixed quantity (up to 100)
-        if (amountSlider) {
-            // Set max value to 100 (fixed quantity)
-            amountSlider.max = 100;
-            
-            amountSlider.addEventListener('input', function() {
-                if (tradeAmountInput) {
-                    // Slider value now directly represents the quantity
-                    const amount = parseFloat(this.value);
-                    tradeAmountInput.value = amount.toFixed(2);
-                    calculateTotal();
-                }
-            });
-        }
-        
-        // Form submission
-        if (tradeForm) {
-            tradeForm.addEventListener('submit', function(e) {
+        // Investment form submission
+        if (investmentForm) {
+            investmentForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                executeTransaction();
+                saveInvestment();
             });
         }
         
         // Close modal buttons
         closeModalBtns.forEach(btn => {
             btn.addEventListener('click', function() {
-                if (successModal) {
-                    successModal.style.display = 'none';
-                }
+                closeModal(this.closest('.modal'));
             });
         });
         
+        // Cancel button
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function() {
+                closeModal(modal);
+            });
+        }
+        
         // Close modal when clicking outside
         window.addEventListener('click', function(event) {
-            if (event.target === successModal) {
-                successModal.style.display = 'none';
+            if (event.target.classList.contains('modal')) {
+                closeModal(event.target);
             }
         });
     }
     
-    // Calculate total for trade
-    function calculateTotal() {
-        if (!tradePriceInput || !tradeAmountInput || !tradeTotalInput) return;
+    // Open investment modal
+    function openInvestmentModal() {
+        if (!modal) return;
         
-        const price = parseFloat(tradePriceInput.value) || 0;
-        const amount = parseFloat(tradeAmountInput.value) || 0;
-        const total = price * amount;
-        
-        tradeTotalInput.value = total.toFixed(2);
-        
-        // Just validate that values are positive
-        if (tradeButton) {
-            tradeButton.disabled = total <= 0 || amount <= 0;
+        // Set current price in the form
+        if (investmentPrice) {
+            investmentPrice.value = priceData.current.toFixed(2);
         }
+        
+        // Reset form
+        if (investmentForm) {
+            investmentForm.reset();
+            
+            // Set the current price again (after reset)
+            if (investmentPrice) {
+                investmentPrice.value = priceData.current.toFixed(2);
+            }
+            
+            // Set today's date
+            if (investmentDate) {
+                investmentDate.valueAsDate = new Date();
+            }
+        }
+        
+        // Show modal
+        modal.style.display = "flex";
+        document.body.style.overflow = "hidden"; // Prevent background scrolling
     }
     
-    // Execute buy/sell transaction
-    async function executeTransaction() {
-        if (!tradePriceInput || !tradeAmountInput || !tradeTotalInput) return;
+    // Close modal
+    function closeModal(modalEl) {
+        if (!modalEl) return;
         
-        const price = parseFloat(tradePriceInput.value);
-        const amount = parseFloat(tradeAmountInput.value);
-        const total = parseFloat(tradeTotalInput.value);
+        modalEl.style.display = "none";
+        document.body.style.overflow = "auto"; // Re-enable scrolling
+    }
+    
+    // Handle investment save
+    function saveInvestment() {
+        if (!investmentForm) return;
         
-        // Validate inputs
-        if (isNaN(price) || price <= 0 || isNaN(amount) || amount <= 0) {
-            alert('Please enter valid price and amount values');
-            return;
-        }
+        // Show loading state on submit button
+        const submitButton = investmentForm.querySelector('.submit-button');
+        const originalButtonText = submitButton.textContent;
+        submitButton.disabled = true;
+        submitButton.textContent = 'Обработва се...';
         
-        // Validate amount doesn't exceed 100
-        if (amount > 100) {
-            alert('Maximum transaction amount is 100');
-            return;
-        }
+        // Get form data
+        const formData = new FormData(investmentForm);
+        const formObject = Object.fromEntries(formData.entries());
         
-        try {
-            // Show loading state on button
-            if (tradeButton) {
-                const originalText = tradeButton.textContent;
-                tradeButton.disabled = true;
-                tradeButton.textContent = 'Processing...';
-                
-                // Prepare transaction data
-                const transactionData = {
-                    symbol: symbol,
-                    assetType: assetType,
-                    action: currentAction,
-                    price: price,
-                    amount: amount,
-                    total: total
-                };
-                
-                // Send transaction to server
-                const response = await fetch('/api/asset/transaction', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(transactionData)
+        // Create payload for API
+        const payload = {
+            type: formObject.investmentType,
+            symbol: formObject.investmentSymbol,
+            amount: parseFloat(formObject.investmentAmount),
+            price: parseFloat(formObject.investmentPrice),
+            currency: formObject.investmentCurrency,
+            date: formObject.investmentDate,
+            notes: formObject.investmentNotes || ''
+        };
+        
+        // Send data to server
+        fetch('/api/investments', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload),
+            credentials: 'same-origin' // Include cookies for session
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.message || 'Failed to add investment');
                 });
-                
-                // Reset button state
-                tradeButton.disabled = false;
-                tradeButton.textContent = originalText;
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Transaction failed');
-                }
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Update success message
-                    if (successMessage) {
-                        successMessage.textContent = data.message || `${currentAction === 'buy' ? 'Purchase' : 'Sale'} successful!`;
-                    }
-                    
-                    // Show success modal
-                    if (successModal) {
-                        successModal.style.display = 'flex';
-                    }
-                    
-                    // Reset form
-                    tradeForm.reset();
-                    
-                    // Set current price again
-                    if (tradePriceInput) {
-                        tradePriceInput.value = priceData.current.toFixed(2);
-                    }
-                    
-                    // Transaction was successful
-                    
-                    // Clear amount
-                    if (tradeAmountInput) {
-                        tradeAmountInput.value = '';
-                    }
-                    
-                    // Reset slider
-                    if (amountSlider) {
-                        amountSlider.value = 0;
-                    }
-                    
-                    // Clear total
-                    if (tradeTotalInput) {
-                        tradeTotalInput.value = '';
-                    }
-                } else {
-                    throw new Error(data.message || 'Transaction failed');
-                }
             }
-        } catch (error) {
-            console.error('Transaction error:', error);
-            alert(error.message || 'An error occurred during the transaction');
-        }
+            return response.json();
+        })
+        .then(data => {
+            // Show success modal
+            if (successModal && successMessage) {
+                successMessage.textContent = 'Вашата инвестиция беше добавена успешно!';
+                closeModal(modal);
+                successModal.style.display = 'flex';
+            } else {
+                Notify.success('Успех', 'Вашата инвестиция беше добавена успешно!');
+                closeModal(modal);
+            }
+        })
+        .catch(error => {
+            console.error('Error saving investment:', error);
+            if (window.Notify) {
+                Notify.error('Грешка', error.message);
+            } else {
+                alert('Грешка: ' + error.message);
+            }
+        })
+        .finally(() => {
+            // Reset button state
+            submitButton.disabled = false;
+            submitButton.textContent = originalButtonText;
+        });
     }
     
     // Refresh price data
@@ -559,10 +505,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update price display with change percentage from the data
                 updatePriceDisplay(data.price, changePercent);
                 
-                // Update form price input
-                if (tradePriceInput) {
-                    tradePriceInput.value = data.price.toFixed(2);
-                    calculateTotal();
+                // Update current price display
+                if (displayCurrentPriceEl) {
+                    displayCurrentPriceEl.textContent = formatCurrency(data.price);
+                }
+                
+                // Update investment form price
+                if (investmentPrice) {
+                    investmentPrice.value = data.price.toFixed(2);
                 }
                 
                 // Add to day data if needed
