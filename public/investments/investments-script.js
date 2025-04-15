@@ -252,41 +252,71 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
     
-    /**
-     * Update the history chart with investment data
-     */
-    function updateHistoryChart(investments) {
-        if (!historyChart || !investments || investments.length === 0) return;
-        
-        // Generate monthly data points for the last 6 months
-        const labels = [];
-        const dataPoints = [];
-        
-        // Get the last 6 months
-        const today = new Date();
-        for (let i = 5; i >= 0; i--) {
-            const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-            labels.push(date.toLocaleDateString('bg-BG', { month: 'short', year: 'numeric' }));
-            dataPoints.push(0); // Initialize with zero
-        }
-        
-        // Populate data points based on investments
-        investments.forEach(investment => {
+/**
+ * Update the history chart with investment data
+ */
+function updateHistoryChart(investments) {
+    if (!historyChart || !investments || investments.length === 0) return;
+    
+    console.log("Updating history chart with investments:", investments);
+    
+    // Generate monthly data points for the last 6 months
+    const labels = [];
+    const dataPoints = [];
+    
+    // Get the last 6 months
+    const today = new Date();
+    const monthDates = [];
+    
+    for (let i = 5; i >= 0; i--) {
+        const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const label = date.toLocaleDateString('bg-BG', { month: 'short', year: 'numeric' });
+        labels.push(label);
+        monthDates.push(date);
+        dataPoints.push(0); // Initialize with zero
+    }
+    
+    console.log("Generated month labels:", labels);
+    
+    // Define currency conversion rates
+    const currencyRates = {
+        'BGN': 1,
+        'USD': 1.79,
+        'EUR': 1.96,
+        'GBP': 2.30
+    };
+    
+    // Populate data points based on investments
+    investments.forEach(investment => {
+        try {
             const purchaseDate = new Date(investment.purchase_date);
             
-            for (let i = 0; i < labels.length; i++) {
-                const monthDate = parseMonthLabel(labels[i]);
+            // Skip invalid dates
+            if (isNaN(purchaseDate.getTime())) {
+                console.warn("Skipping investment with invalid date:", investment);
+                return;
+            }
+            
+            console.log(`Processing investment ${investment.id}: ${investment.symbol || 'Unknown'}`);
+            
+            for (let i = 0; i < monthDates.length; i++) {
+                const monthDate = monthDates[i];
                 
                 // Skip if investment was made after this month
-                if (purchaseDate > monthDate) continue;
+                if (purchaseDate > monthDate) {
+                    console.log(`Investment made after ${monthDate.toISOString().split('T')[0]}, skipping`);
+                    continue;
+                }
                 
                 // Calculate value based on investment type and month
                 let valueAtPoint = 0;
+                const currency = investment.currency || 'BGN';
+                const currencyRate = currencyRates[currency] || 1;
                 
                 if (investment.investment_type === 'bank') {
                     // For bank investments
-                    const initialValue = parseFloat(investment.quantity);
-                    const interestRate = parseFloat(investment.interest_rate) / 100;
+                    const initialValue = parseFloat(investment.quantity || 0);
+                    const interestRate = parseFloat(investment.interest_rate || 0) / 100;
                     const monthsHeld = monthsBetween(purchaseDate, monthDate);
                     
                     // Apply interest based on type
@@ -310,38 +340,52 @@ document.addEventListener("DOMContentLoaded", function() {
                             break;
                     }
                     
-                    valueAtPoint = initialValue * interestMultiplier;
+                    valueAtPoint = initialValue * interestMultiplier * currencyRate;
                 } else {
-                    // For other investments, estimate growth over time
-                    const initialValue = parseFloat(investment.quantity) * parseFloat(investment.purchase_price);
-                    const currentValue = parseFloat(investment.current_value) || initialValue;
+                    // For other investments, we'll use linear interpolation between purchase and current value
+                    const quantity = parseFloat(investment.quantity || 0);
+                    const purchasePrice = parseFloat(investment.purchase_price || 0);
+                    const initialValue = quantity * purchasePrice;
                     
-                    // Calculate percentage between purchase date and today
-                    const totalDuration = today - purchaseDate;
-                    const pointDuration = monthDate - purchaseDate;
-                    const progressPercentage = totalDuration > 0 ? pointDuration / totalDuration : 0;
+                    // Get current value - default to initial if not provided
+                    const currentValue = parseFloat(investment.current_value || initialValue);
                     
-                    // Linear interpolation between initial and current value
-                    valueAtPoint = initialValue + (progressPercentage * (currentValue - initialValue));
+                    // Calculate value as of the month date using linear interpolation
+                    const totalDuration = today.getTime() - purchaseDate.getTime();
+                    const pointDuration = monthDate.getTime() - purchaseDate.getTime();
+                    
+                    if (totalDuration <= 0) {
+                        // If purchase date is today or in the future, use initial value
+                        valueAtPoint = initialValue * currencyRate;
+                    } else {
+                        // Calculate progress percentage and interpolate
+                        const progressPercentage = Math.min(1, pointDuration / totalDuration);
+                        
+                        // Linear interpolation between initial and current value
+                        valueAtPoint = (initialValue + progressPercentage * (currentValue - initialValue)) * currencyRate;
+                    }
                 }
                 
-                // Apply currency conversion if needed
-                const currency = investment.currency || 'BGN';
-                if (currency !== 'BGN') {
-                    // This is a simplification - ideally you'd use the exchange rate for that specific month
-                    const exchangeRate = getExchangeRate(currency);
-                    valueAtPoint *= exchangeRate;
+                // Add to the data point for this month
+                if (!isNaN(valueAtPoint) && isFinite(valueAtPoint)) {
+                    dataPoints[i] += valueAtPoint;
+                    console.log(`Month ${i+1}: ${labels[i]}, added ${valueAtPoint.toFixed(2)} BGN, total: ${dataPoints[i].toFixed(2)} BGN`);
+                } else {
+                    console.warn(`Invalid value calculated for month ${i+1}: ${valueAtPoint}`);
                 }
-                
-                dataPoints[i] += valueAtPoint;
             }
-        });
-        
-        // Update chart data
-        historyChart.data.labels = labels;
-        historyChart.data.datasets[0].data = dataPoints;
-        historyChart.update();
-    }
+        } catch (error) {
+            console.error(`Error processing investment ${investment.id}:`, error);
+        }
+    });
+    
+    console.log("Final chart data points:", dataPoints);
+    
+    // Update chart data
+    historyChart.data.labels = labels;
+    historyChart.data.datasets[0].data = dataPoints;
+    historyChart.update();
+}
     
     /**
      * Parse month label (e.g., "янв. 2023") to Date object
@@ -737,51 +781,55 @@ document.addEventListener("DOMContentLoaded", function() {
         container.appendChild(allocationInsight);
     }
     
+
     /**
      * Open add investment modal
      */
-    function openEditModal(investmentId) {
-        if (!modal || !investmentId) return;
+    function openAddModal() {
+        if (!modal) {
+            console.error("Modal element not found");
+            return;
+        }
         
-        console.log("Opening edit modal for investment ID:", investmentId);
-        console.log("Current investment type:", investmentType);
-        
-        // Store current investment ID
-        currentInvestmentId = investmentId;
+        console.log("Opening add modal");
         
         // Update modal title
         const modalTitle = document.getElementById('modal-title');
-        if (modalTitle) modalTitle.textContent = 'Редактирай инвестиция';
+        if (modalTitle) modalTitle.textContent = 'Добави нова инвестиция';
         
-        // Show delete button
-        if (deleteBtn) deleteBtn.style.display = 'block';
+        // Hide delete button for new investments
+        if (deleteBtn) deleteBtn.style.display = 'none';
         
-        // Choose the correct API endpoint based on investment type
-        let apiEndpoint;
+        // Reset current ID
+        currentInvestmentId = null;
         
-        // For bank investments, use bank-investments API endpoint
+        // Reset form if it exists
+        if (form) form.reset();
+        
+        // Set today's date
+        const dateInputs = document.querySelectorAll('input[type="date"]');
+        dateInputs.forEach(input => {
+            input.valueAsDate = new Date();
+        });
+        
+        // Set form based on investment type
         if (investmentType === 'bank') {
-            apiEndpoint = `/api/bank-investments/${investmentId}`;
+            // Show bank deposit fields
+            const bankDepositFields = document.getElementById('bankDepositFields');
+            const standardFields = document.getElementById('standardFields');
+            
+            if (bankDepositFields) bankDepositFields.style.display = 'block';
+            if (standardFields) standardFields.style.display = 'none';
         } else {
-            // First try the standard investments endpoint
-            apiEndpoint = `/api/investments/${investmentId}`;
+            // Show standard investment fields
+            const bankDepositFields = document.getElementById('bankDepositFields');
+            const standardFields = document.getElementById('standardFields');
+            
+            if (bankDepositFields) bankDepositFields.style.display = 'none';
+            if (standardFields) standardFields.style.display = 'block';
         }
         
-        console.log("Using primary API endpoint:", apiEndpoint);
-        
-        // Show loading indicator in modal
-        const modalBody = document.querySelector('.modal-body');
-        if (modalBody) {
-            const loadingHTML = `
-                <div class="modal-loading" style="text-align: center; padding: 2rem;">
-                    <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid #3c3c3c; border-top: 3px solid ${colorMap[investmentType]}; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                    <p style="margin-top: 1rem; color: #ccc;">Зареждане на данни...</p>
-                </div>
-            `;
-            modalBody.insertAdjacentHTML('afterbegin', loadingHTML);
-        }
-        
-        // Show modal while loading
+        // Show modal
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden'; // Prevent scrolling
         

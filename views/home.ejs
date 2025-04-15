@@ -37,33 +37,58 @@
         </div>
         
         <div class="blog-post-box">
-            <div class="blog-post-title">
-                <h3>Как да се справим с финансовите си проблеми?</h3>
-            </div>
+            <% if (typeof latestPost !== 'undefined' && latestPost) { %>
+                <div class="blog-post-title">
+                    <h3><%= latestPost.title %></h3>
+                </div>
 
-            <div class="blog-post-credentials">
-                <div class="blog-post-author">
-                    <p>От: <a class="author-name">Иван Иванов</a></p>
+                <div class="blog-post-credentials">
+                    <div class="blog-post-author">
+                        <p>От: <a class="author-name"><%= latestPost.author %></a></p>
+                    </div>
+                    <div class="blog-post-title-date">
+                        <p><%= new Date(latestPost.created_at).toLocaleDateString('bg-BG') %></p>
+                    </div>
                 </div>
-                <div class="blog-post-title-date">
-                    <p>12.05.2021</p>
+                <div class="blog-post-content">
+                    <p><%= latestPost.excerpt %></p>
                 </div>
-            </div>
-            <div class="blog-post-content">
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
-                    sed do eiusmod tempor incididunt ut labore et dolore magna 
-                    aliqua. Quis ipsum suspendisse ultrices gravida. Risus commodo
-                     viverra maecenas accumsan lacus vel facilisis.
-                     Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
-                     sed do eiusmod tempor incididunt ut labore et dolore magna 
-                     aliqua. </p>
-            </div>
-            <div class="blog-post-read-more">
-                <a href="#">
-                    <p>Прочети повече</p>
-                    <img src="../design/right-arrow.svg" alt="Logo" style="width: 15%;">
-                </a>
-            </div>
+                <div class="blog-post-read-more">
+                    <a href="/blog/<%= latestPost.id %>">
+                        <p>Прочети повече</p>
+                        <img src="../design/right-arrow.svg" alt="Logo" style="width: 15%;">
+                    </a>
+                </div>
+            <% } else { %>
+                <div class="blog-post-title">
+                    <h3>Как да се справим с финансовите си проблеми?</h3>
+                </div>
+
+                <div class="blog-post-credentials">
+                    <div class="blog-post-author">
+                        <p>От: <a class="author-name">Иван Иванов</a></p>
+                    </div>
+                    <div class="blog-post-title-date">
+                        <p>12.05.2021</p>
+                    </div>
+                </div>
+                <div class="blog-post-content">
+                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
+                        sed do eiusmod tempor incididunt ut labore et dolore magna 
+                        aliqua. Quis ipsum suspendisse ultrices gravida. Risus commodo
+                         viverra maecenas accumsan lacus vel facilisis.
+                         Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
+                         sed do eiusmod tempor incididunt ut labore et dolore magna 
+                         aliqua. </p>
+                </div>
+                <div class="blog-post-read-more">
+                    <a href="/blog">
+                        <p>Прочети повече</p>
+                        <img src="../design/right-arrow.svg" alt="Logo" style="width: 15%;">
+                    </a>
+                </div>
+            <% } %>
+        </div>
         </div>
     </section>
 

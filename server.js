@@ -53,13 +53,176 @@ const requireAuth = (req, res, next) => {
 };
 
 // Public Routes
-app.get("/", (req, res) => {
-    res.render("home", { user: req.session.user || null });
+app.get("/", async (req, res) => {
+    try {
+        // Fetch the latest blog post
+        const [latestPost] = await pool.query(`
+            SELECT bp.*, u.username as author 
+            FROM blog_post bp
+            JOIN users u ON bp.author_id = u.id
+            ORDER BY bp.created_at DESC
+            LIMIT 1
+        `);
+        
+        // Create an excerpt for the post if it exists
+        let blogPost = null;
+        if (latestPost && latestPost.length > 0) {
+            blogPost = latestPost[0];
+            // Create an excerpt by removing HTML tags and limiting to ~400 chars
+            let plainText = blogPost.content.replace(/<[^>]+>/g, '');
+            blogPost.excerpt = plainText.length > 400 ? 
+                plainText.substring(0, 400) + '...' : 
+                plainText;
+        }
+        
+        // Calculate portfolio value if user is logged in
+        if (req.session.user) {
+            try {
+                const userId = req.session.user.id;
+                
+                // Get regular investments
+                const [regularInvestments] = await pool.query(
+                    `SELECT * FROM user_investments WHERE user_id = ?`, 
+                    [userId]
+                );
+                
+                // Get bank investments 
+                const [bankInvestmentsRaw] = await pool.query(
+                    `SELECT 
+                        id,
+                        user_id,
+                        'bank' AS investment_type,
+                        CONCAT('BANK_', currency) AS symbol,
+                        amount AS quantity,
+                        1 AS purchase_price,
+                        currency,
+                        interest_rate,
+                        interest_type,
+                        investment_date AS purchase_date,
+                        notes
+                    FROM bank_investment 
+                    WHERE user_id = ?`, 
+                    [userId]
+                );
+                
+                // Combine both types of investments
+                const investments = [...regularInvestments, ...bankInvestmentsRaw];
+                
+                // Get latest price data for proper valuation
+                const [latestPrices] = await pool.query(`
+                    SELECT ip1.* 
+                    FROM investment_prices ip1
+                    INNER JOIN (
+                        SELECT symbol, MAX(timestamp) as max_timestamp
+                        FROM investment_prices
+                        GROUP BY symbol
+                    ) ip2 ON ip1.symbol = ip2.symbol AND ip1.timestamp = ip2.max_timestamp
+                `);
+                
+                // Create a price lookup map
+                const priceMap = {};
+                latestPrices.forEach(price => {
+                    priceMap[price.symbol] = price.price;
+                });
+                
+                // Define currency rates (same as in portfolio route)
+                const currencyRates = {
+                    'BGN': 1,
+                    'USD': 1.79,
+                    'EUR': 1.96,
+                    'GBP': 2.30
+                };
+                
+                // Calculate total portfolio value
+                let totalValue = 0;
+                
+                // Process each investment
+                for (const investment of investments) {
+                    // Convert string values to numbers
+                    const quantity = parseFloat(investment.quantity);
+                    const purchasePrice = parseFloat(investment.purchase_price);
+                    const interestRate = investment.interest_rate ? parseFloat(investment.interest_rate) : 0;
+                    
+                    // Get currency conversion rate
+                    const currency = investment.currency || 'BGN';
+                    const currencyRate = currencyRates[currency] || 1;
+                    
+                    if (investment.investment_type === 'bank') {
+                        // For bank deposits, calculate with interest
+                        const monthsHeld = monthsBetween(new Date(investment.purchase_date), new Date());
+                        let interestMultiplier = 1;
+                        
+                        // Apply interest based on type (same logic as portfolio.routes.js)
+                        switch(investment.interest_type || 'yearly') {
+                            case 'daily':
+                                interestMultiplier = 1 + ((interestRate / 100) * (monthsHeld * 30) / 365);
+                                break;
+                            case 'monthly_1':
+                                interestMultiplier = 1 + ((interestRate / 100) * monthsHeld / 12);
+                                break;
+                            case 'monthly_3':
+                                interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 3) / 4);
+                                break;
+                            case 'monthly_6':
+                                interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 6) / 2);
+                                break;
+                            case 'yearly':
+                                interestMultiplier = 1 + ((interestRate / 100) * Math.floor(monthsHeld / 12));
+                                break;
+                        }
+                        
+                        // Calculate current value with interest and convert to BGN
+                        const currentValue = quantity * interestMultiplier * currencyRate;
+                        totalValue += currentValue;
+                    } else {
+                        // For other investments, use latest price data
+                        let currentPrice = purchasePrice; // Default to purchase price
+                        
+                        if (priceMap[investment.symbol]) {
+                            currentPrice = parseFloat(priceMap[investment.symbol]);
+                        }
+                        
+                        // Calculate current value and convert to BGN
+                        const currentValue = quantity * currentPrice * currencyRate;
+                        totalValue += currentValue;
+                    }
+                }
+                
+                // Update session with the calculated value
+                req.session.user.portfolioValue = totalValue.toFixed(2);
+                
+            } catch (error) {
+                console.error("Error calculating portfolio value for homepage:", error);
+                // Don't update if there's an error
+            }
+        }
+        
+        // Render the page with all the data
+        res.render("home", { 
+            user: req.session.user || null,
+            latestPost: blogPost
+        });
+        
+    } catch (error) {
+        console.error("Error loading home page:", error);
+        // Still render the home page even if there are errors
+        res.render("home", { 
+            user: req.session.user || null,
+            latestPost: null
+        });
+    }
 });
 
+// Redirect /home to root for consistency
 app.get("/home", (req, res) => {
-    res.render("home", { user: req.session.user || null });
+    res.redirect('/');
 });
+
+// Helper function to calculate months between two dates (same as in portfolio.routes.js)
+function monthsBetween(date1, date2) {
+    const months = (date2.getFullYear() - date1.getFullYear()) * 12;
+    return months + date2.getMonth() - date1.getMonth();
+}
 
 app.get("/register", (req, res) => {
     if (req.session.user) {
@@ -199,6 +362,10 @@ app.get("/investments/bank", requireAuth, async (req, res) => {
 
 // 404 Handler - Catch-all for unmatched routes
 app.use((req, res, next) => {
+    // Skip 404 handling for the home route
+    if (req.path === '/' || req.path === '/home') {
+        return next();
+    }
     res.status(404).sendFile(path.join(__dirname, "public", "404.html"));
 });
 
