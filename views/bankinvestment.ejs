@@ -11,6 +11,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <style>
+        .investment-performance{
+            margin-bottom: 3rem;
+        }
+    </style>
     
     <%- include('partials/header') %>
 
@@ -40,35 +45,28 @@
             </div>
         </div>
 
-        <div class="investment-charts">
-            <div class="chart-container">
-                <h2>История на стойността</h2>
-                <div class="chart-wrapper">
-                    <canvas id="investment-history-chart"></canvas>
-                </div>
-            </div>
-            <div class="investment-performance">
-                <h2>Списък с влогове</h2>
-                <div id="investments-table-container">
-                    <table class="investments-table">
-                        <thead>
-                            <tr>
-                                <th>Валута</th>
-                                <th>Сума</th>
-                                <th>Лихва</th>
-                                <th>Текуща стойност</th>
-                                <th>Печалба</th>
-                                <th>Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody id="investments-table-body">
-                            <!-- This will be populated dynamically -->
-                            <tr class="no-data-row">
-                                <td colspan="6">Няма банкови влогове. Добавете нов влог, за да започнете.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+        <!-- Remove the chart and make the table take full width -->
+        <div class="investment-performance" style="width: 100%; max-width: 100%;">
+            <h2>Списък с влогове</h2>
+            <div id="investments-table-container">
+                <table class="investments-table">
+                    <thead>
+                        <tr>
+                            <th>Валута</th>
+                            <th>Сума</th>
+                            <th>Лихва</th>
+                            <th>Текуща стойност</th>
+                            <th>Печалба</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="investments-table-body">
+                        <!-- This will be populated dynamically -->
+                        <tr class="no-data-row">
+                            <td colspan="6">Няма банкови влогове. Добавете нов влог, за да започнете.</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 

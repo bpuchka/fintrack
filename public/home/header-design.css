@@ -490,9 +490,10 @@ header .button{
     header {
         padding: 0 0.8rem;
     }
-    
+ 
     .logo img {
         height: 3rem;
+        margin: 0;
     }
     
     .login-register-section {

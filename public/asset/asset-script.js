@@ -66,8 +66,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Fetch price data from the server
-    async function fetchPriceData() {
+    async function fetchPriceData(forceRefresh = false) {
         try {
+            // For the day timeframe, always fetch fresh data when forcing refresh
+            if (forceRefresh && currentTimeframe === 'day') {
+                try {
+                    const dayResponse = await fetch(`/api/asset/${symbol}/history?timeframe=day&_=${Date.now()}`);
+                    
+                    if (dayResponse.ok) {
+                        // Store day data with fresh data
+                        priceData.day = await dayResponse.json();
+                        console.log(`Refreshed intraday data: ${priceData.day.length} points`);
+                        
+                        // If we're currently viewing the day timeframe, update the chart
+                        if (currentTimeframe === 'day' && priceChart) {
+                            updateChart('day');
+                        }
+                        return; // Exit early since we've refreshed what we needed
+                    } else {
+                        console.warn('Failed to refresh intraday data');
+                    }
+                } catch (error) {
+                    console.error('Error refreshing intraday data:', error);
+                }
+            }
+            
             // For the MAX/ALL timeframe, make a specific request to get all data
             const allHistoryResponse = await fetch(`/api/asset/${symbol}/history?timeframe=all`);
             
@@ -111,8 +134,18 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Fetch data for each timeframe
             for (const [buttonTime, apiTime] of Object.entries(timeframeMap)) {
+                // Skip day timeframe if we just refreshed it
+                if (forceRefresh && apiTime === 'day' && priceData.day && priceData.day.length > 0) {
+                    continue;
+                }
+                
                 try {
-                    const response = await fetch(`/api/asset/${symbol}/history?timeframe=${apiTime}`);
+                    // Add cache-busting parameter for day timeframe to avoid cached results
+                    const url = apiTime === 'day' 
+                        ? `/api/asset/${symbol}/history?timeframe=${apiTime}&_=${Date.now()}` 
+                        : `/api/asset/${symbol}/history?timeframe=${apiTime}`;
+                        
+                    const response = await fetch(url);
                     
                     if (!response.ok) {
                         throw new Error(`Failed to fetch ${apiTime} price data`);
@@ -574,7 +607,20 @@ document.addEventListener('DOMContentLoaded', function() {
         
         switch (timeframe) {
             case 'day':
-                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                // For intraday data, show the time with more precision
+                const now = new Date();
+                const isToday = date.getDate() === now.getDate() && 
+                               date.getMonth() === now.getMonth() && 
+                               date.getFullYear() === now.getFullYear();
+                
+                if (isToday) {
+                    // For today's data points, show hour and minute
+                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } else {
+                    // For non-today points (shouldn't happen in day view), show date and time
+                    return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + 
+                           date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
             case 'week':
                 return date.toLocaleDateString([], { weekday: 'short', day: 'numeric' });
             case 'month':

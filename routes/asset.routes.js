@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const PriceData = require("../models/price-data.model");
+const { fetchIntradayPrices, generateIntradayFallbackData } = require("../services/intradayPrices");
 
 // Middleware to check authentication
 const requireAuth = (req, res, next) => {
@@ -169,7 +170,33 @@ router.get("/:symbol/history", async (req, res) => {
         const symbol = req.params.symbol.toUpperCase();
         const timeframe = req.query.timeframe || 'day';
         
-        // Try to fetch actual price data from database
+        // For daily timeframe, use intraday data from Alpha Vantage
+        if (timeframe === 'day') {
+            // First, determine the asset type for this symbol
+            const assetInfo = assetMapping[symbol] || defaultAssetInfo;
+            const assetType = assetInfo.type;
+            
+            // Try to fetch intraday data directly from Alpha Vantage
+            const intradayData = await fetchIntradayPrices(symbol, assetType);
+            
+            // If we got intraday data, return it
+            if (intradayData && intradayData.length > 0) {
+                console.log(`Returning ${intradayData.length} intraday price points for ${symbol}`);
+                return res.json(intradayData);
+            }
+            
+            // If API failed, try fallback intraday data
+            const fallbackData = generateIntradayFallbackData(symbol);
+            if (fallbackData && fallbackData.length > 0) {
+                console.log(`Returning ${fallbackData.length} fallback intraday points for ${symbol}`);
+                return res.json(fallbackData);
+            }
+            
+            // If all else fails, use database
+            console.log(`No intraday data available for ${symbol}, falling back to database`);
+        }
+        
+        // For non-daily timeframes or when intraday data is unavailable
         try {
             const priceData = await PriceData.getHistoricalPrices(symbol, timeframe);
             
