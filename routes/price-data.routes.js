@@ -219,12 +219,12 @@ function generateMockPriceData(symbol, timeframe) {
 function generateMockLatestPrice(symbol) {
     // Base price for each symbol (approximate values)
     const basePrices = {
-        'BTC': 35000,
+        'BTC': 65000,
         'ETH': 2000,
         'USDT': 1,
         'XRP': 0.5,
         'SOL': 60,
-        'AAPL': 175,
+        'AAPL': 200,
         'NVDA': 450,
         'TSLA': 250,
         'GLD': 190,

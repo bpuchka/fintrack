@@ -396,8 +396,13 @@ async function fetchAndStoreDailyPrice(symbol, assetCategory) {
     
     // Format date to get only the date part with midnight time
     const formattedDate = new Date(date);
-    formattedDate.setHours(0, 0, 0, 0);
-    const sqlDate = formattedDate.toISOString().slice(0, 19).replace('T', ' ');
+    const utcDate = new Date(Date.UTC(
+      formattedDate.getFullYear(),
+      formattedDate.getMonth(),
+      formattedDate.getDate(),
+      0, 0, 0, 0
+    ));
+    const sqlDate = utcDate.toISOString().slice(0, 19).replace('T', ' ');
     
     // Check if this price already exists
     const [existingPrice] = await pool.query(`
@@ -499,8 +504,13 @@ async function initializeDailyPrices() {
     
     // Determine which assets need updating
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
+    const todayUtc = new Date(Date.UTC(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      0, 0, 0, 0
+    ));
+    const todayStr = todayUtc.toISOString().split('T')[0];
     
     console.log(`Checking for daily prices for ${todayStr}...`);
     

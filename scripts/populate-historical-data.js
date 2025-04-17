@@ -256,8 +256,13 @@ async function storeHistoricalData(symbol, data, assetType) {
         // Convert date string to MySQL datetime format
         // Ensure timestamp is set to 00:00:00 for daily data
         const formattedDate = new Date(date);
-        formattedDate.setHours(0, 0, 0, 0);
-        const mysqlDateTime = formattedDate.toISOString().slice(0, 19).replace('T', ' ');
+        const utcDate = new Date(Date.UTC(
+          formattedDate.getFullYear(),
+          formattedDate.getMonth(),
+          formattedDate.getDate(),
+          0, 0, 0, 0
+        ));
+        const mysqlDateTime = utcDate.toISOString().slice(0, 19).replace('T', ' ');        
         
         records.push([symbol, price.toFixed(2), mysqlDateTime, assetType]);
       }

@@ -7,7 +7,6 @@ const BASE_URL = "https://www.alphavantage.co/query";
 
 /**
  * Fetch intraday prices from Alpha Vantage for a specific symbol
- * Does NOT store results in database
  * 
  * @param {string} symbol - The asset symbol (e.g., BTC, AAPL)
  * @param {string} assetType - The asset type (crypto, stock, forex, etc.)
