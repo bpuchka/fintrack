@@ -26,7 +26,8 @@ Price.getLatest = async (symbol) => {
     const [rows] = await sql
       .promise()
       .query(
-        "SELECT * FROM investment_prices WHERE symbol = ? ORDER BY timestamp DESC LIMIT 1",
+        "SELECT * FROM investment_prices ",
+        "WHERE symbol = ? ORDER BY timestamp DESC LIMIT 1",
         [symbol]
       );
     if (rows.length) {
