@@ -173,220 +173,392 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
     
-    /**
-     * Setup the investment history chart
-     */
-    function setupHistoryChart() {
-        const chartCanvas = document.getElementById('investment-history-chart');
-        if (!chartCanvas) return null;
-        
-        const ctx = chartCanvas.getContext('2d');
-        
-        // Create chart
-        return new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: displayNames[investmentType] || 'Инвестиции',
-                    data: [],
-                    borderColor: colorMap[investmentType] || '#6dc0e0',
-                    backgroundColor: `${colorMap[investmentType]}20` || '#6dc0e020',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.parsed.y !== null) {
-                                    label += formatCurrency(context.parsed.y) + ' лв.';
-                                }
-                                return label;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        },
-                        ticks: {
-                            color: '#ccc'
-                        }
-                    },
-                    y: {
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        },
-                        ticks: {
-                            color: '#ccc',
-                            callback: function(value) {
-                                return formatCurrency(value) + ' лв.';
-                            }
-                        }
-                    }
-                },
-                interaction: {
-                    mode: 'nearest',
-                    axis: 'x',
-                    intersect: false
-                }
-            }
-        });
-    }
-    
 /**
- * Update the history chart with investment data
+ * Setup the investment history chart with updated configuration
  */
-function updateHistoryChart(investments) {
-    if (!historyChart || !investments || investments.length === 0) return;
+function setupHistoryChart() {
+    const chartCanvas = document.getElementById('investment-history-chart');
+    if (!chartCanvas) return null;
     
-    console.log("Updating history chart with investments:", investments);
+    const ctx = chartCanvas.getContext('2d');
     
-    // Generate monthly data points for the last 6 months
-    const labels = [];
-    const dataPoints = [];
-    
-    // Get the last 6 months
-    const today = new Date();
-    const monthDates = [];
-    
-    for (let i = 5; i >= 0; i--) {
-        const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-        const label = date.toLocaleDateString('bg-BG', { month: 'short', year: 'numeric' });
-        labels.push(label);
-        monthDates.push(date);
-        dataPoints.push(0); // Initialize with zero
+    // Create chart with updated configuration
+    return new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: `${displayNames[investmentType]} - Ценови движения`,
+                data: [],
+                borderColor: colorMap[investmentType] || '#6dc0e0',
+                backgroundColor: `${colorMap[investmentType]}20` || '#6dc0e020',
+                fill: false, // Changed to false for cleaner price chart look
+                tension: 0.4,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: {
+                        color: '#ffffff'
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                // Format based on investment type
+                                if (investmentType === 'bank') {
+                                    label += formatCurrency(context.parsed.y) + ' лв.';
+                                } else {
+                                    // For other assets, show in their typical currency (USD for most)
+                                    label += '$' + formatCurrency(context.parsed.y);
+                                }
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                        color: '#ccc',
+                        maxTicksLimit: 10 // Limit number of x-axis labels
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                        color: '#ccc',
+                        callback: function(value) {
+                            // Format Y-axis based on investment type
+                            if (investmentType === 'bank') {
+                                return formatCurrency(value) + ' лв.';
+                            } else {
+                                return '$' + formatCurrency(value);
+                            }
+                        }
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    });
+}
+
+/**
+ * Update the history chart with actual asset price data using dedicated API
+ */
+async function updateHistoryChart(investments) {
+    if (!historyChart) {
+        console.warn("History chart not initialized");
+        return;
     }
     
-    console.log("Generated month labels:", labels);
+    if (!investments || investments.length === 0) {
+        // If no investments, show empty chart
+        historyChart.data.labels = [];
+        historyChart.data.datasets[0].data = [];
+        historyChart.update();
+        return;
+    }
     
-    // Define currency conversion rates
-    const currencyRates = {
-        'BGN': 1,
-        'USD': 1.79,
-        'EUR': 1.96,
-        'GBP': 2.30
-    };
+    console.log("Updating history chart with price data for investment type:", investmentType);
     
-    // Populate data points based on investments
-    investments.forEach(investment => {
-        try {
-            const purchaseDate = new Date(investment.purchase_date);
-            
-            // Skip invalid dates
-            if (isNaN(purchaseDate.getTime())) {
-                console.warn("Skipping investment with invalid date:", investment);
-                return;
-            }
-            
-            console.log(`Processing investment ${investment.id}: ${investment.symbol || 'Unknown'}`);
-            
-            for (let i = 0; i < monthDates.length; i++) {
-                const monthDate = monthDates[i];
-                
-                // Skip if investment was made after this month
-                if (purchaseDate > monthDate) {
-                    console.log(`Investment made after ${monthDate.toISOString().split('T')[0]}, skipping`);
-                    continue;
-                }
-                
-                // Calculate value based on investment type and month
-                let valueAtPoint = 0;
-                const currency = investment.currency || 'BGN';
-                const currencyRate = currencyRates[currency] || 1;
-                
-                if (investment.investment_type === 'bank') {
-                    // For bank investments
-                    const initialValue = parseFloat(investment.quantity || 0);
-                    const interestRate = parseFloat(investment.interest_rate || 0) / 100;
-                    const monthsHeld = monthsBetween(purchaseDate, monthDate);
-                    
-                    // Apply interest based on type
-                    let interestMultiplier = 1;
-                    switch(investment.interest_type) {
-                        case 'daily':
-                            interestMultiplier = 1 + (interestRate * (monthsHeld * 30) / 365);
-                            break;
-                        case 'monthly_1':
-                            interestMultiplier = 1 + (interestRate * monthsHeld / 12);
-                            break;
-                        case 'monthly_3':
-                            interestMultiplier = 1 + (interestRate * Math.floor(monthsHeld / 3) / 4);
-                            break;
-                        case 'monthly_6':
-                            interestMultiplier = 1 + (interestRate * Math.floor(monthsHeld / 6) / 2);
-                            break;
-                        case 'yearly':
-                        default:
-                            interestMultiplier = 1 + (interestRate * Math.floor(monthsHeld / 12));
-                            break;
-                    }
-                    
-                    valueAtPoint = initialValue * interestMultiplier * currencyRate;
-                } else {
-                    // For other investments, we'll use linear interpolation between purchase and current value
-                    const quantity = parseFloat(investment.quantity || 0);
-                    const purchasePrice = parseFloat(investment.purchase_price || 0);
-                    const initialValue = quantity * purchasePrice;
-                    
-                    // Get current value - default to initial if not provided
-                    const currentValue = parseFloat(investment.current_value || initialValue);
-                    
-                    // Calculate value as of the month date using linear interpolation
-                    const totalDuration = today.getTime() - purchaseDate.getTime();
-                    const pointDuration = monthDate.getTime() - purchaseDate.getTime();
-                    
-                    if (totalDuration <= 0) {
-                        // If purchase date is today or in the future, use initial value
-                        valueAtPoint = initialValue * currencyRate;
-                    } else {
-                        // Calculate progress percentage and interpolate
-                        const progressPercentage = Math.min(1, pointDuration / totalDuration);
-                        
-                        // Linear interpolation between initial and current value
-                        valueAtPoint = (initialValue + progressPercentage * (currentValue - initialValue)) * currencyRate;
-                    }
-                }
-                
-                // Add to the data point for this month
-                if (!isNaN(valueAtPoint) && isFinite(valueAtPoint)) {
-                    dataPoints[i] += valueAtPoint;
-                    console.log(`Month ${i+1}: ${labels[i]}, added ${valueAtPoint.toFixed(2)} BGN, total: ${dataPoints[i].toFixed(2)} BGN`);
-                } else {
-                    console.warn(`Invalid value calculated for month ${i+1}: ${valueAtPoint}`);
-                }
-            }
-        } catch (error) {
-            console.error(`Error processing investment ${investment.id}:`, error);
+    try {
+        // Use the new dedicated API endpoint for price history
+        const response = await fetch(`/investments/api/${investmentType}/price-history?timeframe=month`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to fetch price history');
+        }
+        
+        const priceData = result.data || [];
+        console.log("Received price history data:", priceData.length, "points");
+        
+        if (priceData.length === 0) {
+            // Generate demo data if no data available
+            console.log("No price data available, generating demo data");
+            const demoData = generateDemoAssetPriceData(investments[0]?.symbol || 'BTC', investmentType);
+            updateChartWithData(demoData, result.type || 'demo_data');
+            return;
+        }
+        
+        // Update chart with received data
+        updateChartWithData(priceData, result.type || 'real_data');
+        
+    } catch (error) {
+        console.error("Error fetching price history:", error);
+        
+        // Fallback to demo data
+        const demoSymbol = investments[0]?.symbol || getDefaultSymbolForType(investmentType);
+        const demoData = generateDemoAssetPriceData(demoSymbol, investmentType);
+        updateChartWithData(demoData, 'demo_data');
+    }
+}
+
+
+    /**
+ * Create weighted portfolio value chart when user has multiple assets
+ */
+function createWeightedPortfolioChart(investments, allPriceData) {
+    console.log("Creating weighted portfolio chart");
+    
+    // Create a map of symbol to price data
+    const priceMap = {};
+    allPriceData.forEach(item => {
+        if (item.data && item.data.length > 0) {
+            priceMap[item.symbol] = item.data;
         }
     });
     
-    console.log("Final chart data points:", dataPoints);
+    // If no price data available, return empty
+    if (Object.keys(priceMap).length === 0) {
+        return [];
+    }
     
-    // Update chart data
+    // Get all unique timestamps and sort them
+    const allTimestamps = new Set();
+    Object.values(priceMap).forEach(priceData => {
+        priceData.forEach(point => {
+            allTimestamps.add(point.timestamp);
+        });
+    });
+    
+    const sortedTimestamps = Array.from(allTimestamps).sort();
+    
+    // Calculate portfolio value at each timestamp
+    const portfolioData = [];
+    
+    sortedTimestamps.forEach(timestamp => {
+        let totalValue = 0;
+        let hasValidData = false;
+        
+        investments.forEach(investment => {
+            const symbol = investment.symbol;
+            const quantity = parseFloat(investment.quantity || 0);
+            
+            if (priceMap[symbol]) {
+                // Find price closest to this timestamp
+                const pricePoint = findClosestPrice(priceMap[symbol], timestamp);
+                if (pricePoint) {
+                    const value = quantity * pricePoint.price;
+                    totalValue += value;
+                    hasValidData = true;
+                }
+            }
+        });
+        
+        if (hasValidData) {
+            portfolioData.push({
+                timestamp: timestamp,
+                price: totalValue
+            });
+        }
+    });
+    
+    console.log("Generated portfolio data points:", portfolioData.length);
+    return portfolioData;
+}
+   
+/**
+ * Update chart with provided data
+ */
+function updateChartWithData(priceData, dataType) {
+    if (!historyChart || !priceData || priceData.length === 0) {
+        return;
+    }
+    
+    // Prepare chart data
+    const labels = priceData.map(point => {
+        const date = new Date(point.timestamp);
+        return date.toLocaleDateString('bg-BG', { month: 'short', day: 'numeric' });
+    });
+    
+    const prices = priceData.map(point => point.price);
+    
+    console.log("Updating chart with", labels.length, "data points");
+    console.log("Data type:", dataType);
+    
+    // Update chart
     historyChart.data.labels = labels;
-    historyChart.data.datasets[0].data = dataPoints;
+    historyChart.data.datasets[0].data = prices;
+    
+    // Update chart label based on data type
+    let chartLabel = displayNames[investmentType] || 'Инвестиции';
+    
+    switch (dataType) {
+        case 'single_asset':
+            chartLabel += ' - Ценова история';
+            break;
+        case 'portfolio_value':
+            chartLabel += ' - Стойност на портфолиото';
+            break;
+        case 'demo_data':
+            chartLabel += ' - Примерни данни';
+            break;
+        default:
+            chartLabel += ' - Ценови движения';
+    }
+    
+    historyChart.data.datasets[0].label = chartLabel;
     historyChart.update();
 }
+
+/**
+ * Find the price point closest to a given timestamp
+ */
+function findClosestPrice(priceData, targetTimestamp) {
+    if (!priceData || priceData.length === 0) return null;
     
+    const targetTime = new Date(targetTimestamp).getTime();
+    let closest = null;
+    let minDiff = Infinity;
+    
+    priceData.forEach(point => {
+        const pointTime = new Date(point.timestamp).getTime();
+        const diff = Math.abs(pointTime - targetTime);
+        
+        if (diff < minDiff) {
+            minDiff = diff;
+            closest = point;
+        }
+    });
+    
+    return closest;
+}
+
+/**
+ * Generate demo asset price data when real data is not available
+ */
+function generateDemoAssetPriceData(symbol, assetType) {
+    console.log(`Generating demo asset price data for ${symbol} (${assetType})`);
+    
+    // Base prices for different assets
+    const basePrices = {
+        // Crypto
+        'BTC': 65000,
+        'ETH': 3500,
+        'USDT': 1.00,
+        'XRP': 0.55,
+        'SOL': 150,
+        
+        // Stocks
+        'AAPL': 220,
+        'NVDA': 900,
+        'TSLA': 250,
+        
+        // Metals/ETFs
+        'GLD': 200,
+        'SLV': 24,
+        
+        // Bank (special case)
+        'BANK_BGN': 1000,
+        'BANK_USD': 1000,
+        'BANK_EUR': 1000
+    };
+    
+    const basePrice = basePrices[symbol] || 100;
+    
+    // Volatility based on asset type
+    let volatility;
+    switch (assetType) {
+        case 'crypto':
+            volatility = 0.04; // 4% daily volatility
+            break;
+        case 'stock':
+            volatility = 0.02; // 2% daily volatility
+            break;
+        case 'metal':
+            volatility = 0.015; // 1.5% daily volatility
+            break;
+        case 'bank':
+            volatility = 0.001; // Very low volatility for bank deposits
+            break;
+        default:
+            volatility = 0.02;
+    }
+    
+    // Generate 30 days of price data
+    const priceData = [];
+    let currentPrice = basePrice;
+    const now = new Date();
+    
+    for (let i = 29; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        
+        // Add random price movement
+        const change = currentPrice * (Math.random() * volatility * 2 - volatility);
+        
+        // Add slight upward trend for more realistic demo
+        const trend = currentPrice * 0.001; // 0.1% daily trend
+        
+        currentPrice += change + trend;
+        
+        // Ensure price doesn't go negative or too extreme
+        if (currentPrice < basePrice * 0.7) {
+            currentPrice = basePrice * 0.7 + Math.random() * basePrice * 0.1;
+        } else if (currentPrice > basePrice * 1.4) {
+            currentPrice = basePrice * 1.3 - Math.random() * basePrice * 0.1;
+        }
+        
+        priceData.push({
+            timestamp: date.toISOString(),
+            price: currentPrice
+        });
+    }
+    
+    return priceData;
+}
+
+/**
+ * Get default symbol for asset type
+ */
+function getDefaultSymbolForType(type) {
+    const defaults = {
+        'crypto': 'BTC',
+        'stock': 'AAPL', 
+        'metal': 'GLD',
+        'bank': 'BANK_BGN'
+    };
+    return defaults[type] || 'BTC';
+}
+
     /**
      * Parse month label (e.g., "янв. 2023") to Date object
      */

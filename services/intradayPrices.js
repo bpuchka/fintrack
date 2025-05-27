@@ -111,14 +111,14 @@ function generateIntradayFallbackData(symbol) {
   
   // Base price for each symbol (approximate values)
   const basePrices = {
-    'BTC': 35000,
+    'BTC': 85000,
     'ETH': 2000,
     'USDT': 1,
-    'XRP': 0.5,
-    'SOL': 60,
-    'AAPL': 175,
-    'NVDA': 450,
-    'TSLA': 250,
+    'XRP': 2,
+    'SOL': 145,
+    'AAPL': 193,
+    'NVDA': 110,
+    'TSLA': 240,
     'GLD': 190,
     'SLV': 23
   };

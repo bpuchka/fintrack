@@ -200,23 +200,33 @@ router.get("/:symbol/history", async (req, res) => {
         try {
             const priceData = await PriceData.getHistoricalPrices(symbol, timeframe);
             
-            // If no data found, return mock data
+            // If no data found, return an empty array with a message instead of mock data
             if (priceData.length === 0) {
-                console.log(`No price data found for ${symbol}, generating mock data`);
-                return res.json(generateMockPriceData(symbol, timeframe));
+                console.log(`No price data found for ${symbol} in timeframe ${timeframe}`);
+                return res.json({ 
+                    noData: true, 
+                    message: `No historical data available for ${symbol} in the selected time period.` 
+                });
             }
             
             // Return actual data
             return res.json(priceData);
         } catch (dbError) {
             console.error(`Database error fetching price data for ${symbol}:`, dbError);
-            // Fallback to generating mock data
-            return res.json(generateMockPriceData(symbol, timeframe));
+            // Return an empty array with error message instead of mock data
+            return res.json({ 
+                noData: true, 
+                message: `Error retrieving data for ${symbol}. Please try again later.`,
+                error: dbError.message 
+            });
         }
     } catch (error) {
         console.error(`Error in price history endpoint for ${req.params.symbol}:`, error);
-        // Return empty data instead of error
-        res.json([]);
+        // Return empty data with error message instead of an empty array
+        res.json({ 
+            noData: true, 
+            message: `Could not load data for ${req.params.symbol}. Please try again later.` 
+        });
     }
 });
 

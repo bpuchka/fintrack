@@ -305,14 +305,16 @@ async function fetchAndStoreDailyPrice(symbol, assetCategory) {
     }
     
     if (response.data['Information'] && response.data['Information'].includes('API rate limit')) {
-      console.warn(`API rate limit reached for ${symbol}, using fallback price`);
-      useFallbackPrice(symbol, assetType);
+      console.warn(`API rate limit reached for ${symbol}, skipping database storage`);
+      // REMOVED: Don't store fallback prices
+      // useFallbackPrice(symbol, assetType);
       return;
     }
     
     if (response.data['Note'] && response.data['Note'].includes('call frequency')) {
-      console.warn(`API call frequency exceeded for ${symbol}, using fallback price`);
-      useFallbackPrice(symbol, assetType);
+      console.warn(`API call frequency exceeded for ${symbol}, skipping database storage`);
+      // REMOVED: Don't store fallback prices
+      // useFallbackPrice(symbol, assetType);
       return;
     }
     
@@ -380,20 +382,20 @@ async function fetchAndStoreDailyPrice(symbol, assetCategory) {
         console.log(`Parsed forex price: ${price}, date: ${date}`);
       }
       
-      // Check for NaN price
+      // Check for NaN price - if NaN, don't store anything
       if (isNaN(price)) {
-        console.warn(`Parsed price is NaN for ${symbol}, using fallback`);
-        price = getFallbackPrice(symbol);
-        console.log(`Using fallback price for ${symbol}: ${price}`);
+        console.warn(`Parsed price is NaN for ${symbol}, skipping database storage`);
+        return; // Exit without storing anything
       }
     } catch (parseError) {
       console.error(`Error parsing data for ${symbol}:`, parseError.message);
-      // Use fallback price when parsing fails
-      price = getFallbackPrice(symbol);
-      date = new Date().toISOString().split('T')[0]; // Use today's date
-      console.log(`Using fallback price for ${symbol} due to parsing error: ${price}`);
+      // REMOVED: Don't use fallback price when parsing fails
+      // Just skip storing anything for this symbol
+      console.warn(`Skipping database storage for ${symbol} due to parsing error`);
+      return;
     }
     
+    // Only proceed to store if we have valid price data from the API
     // Format date to get only the date part with midnight time
     const formattedDate = new Date(date);
     const utcDate = new Date(Date.UTC(
@@ -410,7 +412,7 @@ async function fetchAndStoreDailyPrice(symbol, assetCategory) {
       WHERE symbol = ? AND DATE(timestamp) = DATE(?)
     `, [symbol, sqlDate]);
     
-    // Insert or update price
+    // Insert or update price - only with real API data
     if (existingPrice.length > 0) {
       // Update price if it's different
       const existingPriceValue = parseFloat(existingPrice[0].price);
@@ -425,7 +427,7 @@ async function fetchAndStoreDailyPrice(symbol, assetCategory) {
         console.log(`Price for ${symbol} on ${sqlDate} already exists and is current`);
       }
     } else {
-      // Insert new price
+      // Insert new price - only real API data
       console.log(`Inserting new price for ${symbol} on ${sqlDate}: ${price}`);
       await pool.query(`
         INSERT INTO investment_prices (symbol, price, timestamp, asset_type)
@@ -438,8 +440,9 @@ async function fetchAndStoreDailyPrice(symbol, assetCategory) {
       console.error('Error response:', error.response.data);
     }
     
-    // Use fallback price when request fails
-    await useFallbackPrice(symbol, assetType);
+    // REMOVED: Don't use fallback price when request fails
+    // await useFallbackPrice(symbol, assetType);
+    console.warn(`Skipping database storage for ${symbol} due to API error`);
   }
 }
 
@@ -449,38 +452,8 @@ async function fetchAndStoreDailyPrice(symbol, assetCategory) {
  * @param {string} assetType - Asset type
  */
 async function useFallbackPrice(symbol, assetType) {
-  try {
-    const price = getFallbackPrice(symbol);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const sqlDate = today.toISOString().slice(0, 19).replace('T', ' ');
-    
-    // Check if this price already exists
-    const [existingPrice] = await pool.query(`
-      SELECT * FROM investment_prices 
-      WHERE symbol = ? AND DATE(timestamp) = DATE(?)
-    `, [symbol, sqlDate]);
-    
-    // Insert or update price
-    if (existingPrice.length > 0) {
-      // Update price
-      console.log(`Updating with fallback price for ${symbol} on ${sqlDate}: ${price}`);
-      await pool.query(`
-        UPDATE investment_prices 
-        SET price = ? 
-        WHERE id = ?
-      `, [price.toFixed(2), existingPrice[0].id]);
-    } else {
-      // Insert new price
-      console.log(`Inserting fallback price for ${symbol} on ${sqlDate}: ${price}`);
-      await pool.query(`
-        INSERT INTO investment_prices (symbol, price, timestamp, asset_type)
-        VALUES (?, ?, ?, ?)
-      `, [symbol, price.toFixed(2), sqlDate, assetType]);
-    }
-  } catch (error) {
-    console.error(`Error using fallback price for ${symbol}:`, error.message);
-  }
+
+  console.warn(`Using fallback price for ${symbol} - API data unavailable. Fallback prices are for display only and not stored in database.`);
 }
 
 /**
